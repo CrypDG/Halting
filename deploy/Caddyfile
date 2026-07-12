@@ -1,10 +1,14 @@
 # Halting admin panel — Caddy site block for halt.loankard.com
 # DNS is already correct: halt.loankard.com → 94.136.189.234
 #
-# This is an ADDITIVE snippet — do not replace your existing Caddyfile.
-# See deploy/README.md for the 3 ways to add this without touching
-# whatever is already running on the server.
+# This is an ADDITIVE block — append it to the END of the Caddyfile that
+# `fms-caddy` actually mounts (found via docker inspect, see deploy/README.md).
+# Do not remove or reorder any existing site blocks in that file.
+#
+# "halting-admin" resolves via Docker's embedded DNS because both containers
+# share the "halting-shared" network (see docker-compose.yml + README step 2).
+# Port 3100 here is the CONTAINER's internal port, not a host port.
 
 halt.loankard.com {
-    reverse_proxy 127.0.0.1:3100
+    reverse_proxy halting-admin:3100
 }

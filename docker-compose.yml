@@ -1,8 +1,10 @@
 # Halting admin panel — deploys standalone alongside your existing project(s).
 # Build & run:
 #   docker compose up -d --build
-# Serves on 127.0.0.1:3100; Caddy (already running on the host) proxies
-# halt.loankard.com to it — see deploy/README.md.
+# Serves on 127.0.0.1:3100 for local testing, AND on the "halting-shared"
+# Docker network as hostname "halting-admin:3100" for the existing fms-caddy
+# container to reach (127.0.0.1 doesn't cross container boundaries).
+# See deploy/README.md for the one-time network setup.
 #
 # Uses its own project name so `docker compose down` here can never touch
 # your other project's containers, even if run from the same parent dir.
@@ -17,28 +19,18 @@ services:
         # Public Supabase values (safe to embed — anon key is RLS-guarded).
         NEXT_PUBLIC_SUPABASE_URL: "https://pybxdufrmnhgneupsssi.supabase.co"
         NEXT_PUBLIC_SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB5YnhkdWZybW5oZ25ldXBzc3NpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM4MzU0MjMsImV4cCI6MjA5OTQxMTQyM30.GgRA6zHueRJ4yZBGfVJglPMtNkvz52piHHCME8iN-JE"
-    # Bind to loopback only; Caddy terminates TLS and forwards here.
-    # Change the host-side "3100" below if that port is already taken
+    # 127.0.0.1-only, purely for `curl` testing from the host. The real
+    # traffic path is the shared network below, not this port.
+    # Change the host-side "3100" if that port is already taken
     # (check first: `ss -tlnp | grep 3100`).
     ports:
       - "127.0.0.1:3100:3100"
+    networks:
+      - default
+      - shared
     restart: unless-stopped
 
-    # ── Alternative: Caddy Docker Proxy (label-based, no Caddyfile edit) ──
-    # If your existing Caddy instance is lucaslorentz/caddy-docker-proxy
-    # (routes purely from container labels): delete the `ports:` line above,
-    # uncomment the 4 lines below, AND uncomment the top-level `networks:`
-    # block at the bottom of this file. Replace "caddy" with whatever
-    # network name your existing Caddy container actually joins — check with
-    # `docker inspect <caddy-container-name> --format '{{json .NetworkSettings.Networks}}'`.
-    # labels:
-    #   caddy: halt.loankard.com
-    #   caddy.reverse_proxy: "{{upstreams 3100}}"
-    # networks:
-    #   - caddy
-
-# Only needed for the Caddy Docker Proxy alternative above — uncomment
-# together with the service-level `networks:` block.
-# networks:
-#   caddy:
-#     external: true
+networks:
+  shared:
+    name: halting-shared
+    external: true

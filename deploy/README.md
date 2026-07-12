@@ -1,92 +1,75 @@
 # Deploying the Halting admin panel → halt.loankard.com (94.136.189.234)
 
-**DNS is already correct** — `halt.loankard.com` resolves to `94.136.189.234`,
-so no registrar step needed.
+**Confirmed server topology** (from live `docker ps` on 2026-07-12):
+- Existing project `fleetsathi`/`fms`: containers `fms-app`, `fms-cron`,
+  `fms-backup`, `fleetsathi-postgres`, and **`fms-caddy`** (image
+  `caddy:2-alpine`) — `fms-caddy` owns host ports 80/443 and reads a static
+  Caddyfile (`docker inspect` its mounts to find the exact path).
+- DNS for `halt.loankard.com` already points at this server.
 
-**The server already runs Caddy** and has another project on it. Everything
-below is additive: a new Docker container + a new Caddy site block. Nothing
-here touches your existing project, its containers, or its Caddy config.
+Because Caddy runs in its **own container**, `reverse_proxy 127.0.0.1:3100`
+would not work (127.0.0.1 inside `fms-caddy` means itself, not the host). The
+fix: put `halting-admin` and `fms-caddy` on a shared Docker network and
+reference it by container name. `docker network connect` attaches a network
+to an already-running container **without restarting it** — `fms-caddy` and
+your other project are never touched.
 
-## 1. Get the code onto the server
-
-```bash
-git clone <your-repo> halting && cd halting     # or scp/rsync the folder
-```
-Put it anywhere that isn't your existing project's directory, e.g. `~/halting`.
-
-## 2. Check for port conflicts (30 seconds, read-only)
-
-```bash
-docker ps                    # see what's already running — don't touch it
-ss -tlnp | grep 3100         # is port 3100 already taken on the host?
-```
-If `3100` is free, skip to step 3. If it's taken, edit `docker-compose.yml`
-and change the **host** side of the port mapping, e.g.:
-```yaml
-ports:
-  - "127.0.0.1:3200:3100"   # host:container — only the first number matters
-```
-(then use that port instead of 3100 in the Caddy block in step 4).
-
-## 3. Build & run
+## 1. Get the code onto the server (done)
 
 ```bash
+git clone https://github.com/CrypDG/Halting.git ~/halting
+```
+
+## 2. Create the shared network and join it to fms-caddy (one-time, non-disruptive)
+
+```bash
+docker network create halting-shared
+docker network connect halting-shared fms-caddy
+```
+`docker network connect` on a running container doesn't restart it or drop
+its existing connections — this is safe to run against `fms-caddy` live.
+
+## 3. Build & run the admin panel
+
+```bash
+cd ~/halting
+git pull                      # if you cloned before this compose update
 docker compose up -d --build
+docker compose ps             # expect "halting-admin" Up
+curl -I http://127.0.0.1:3100/login   # expect HTTP 200 (host-side sanity check)
 ```
-This builds from the repo root (needed for the `@halting/shared` workspace)
-and starts a container named `halting-admin`, bound to **127.0.0.1:3100 only**
-— not reachable from the internet directly, and won't collide with your other
-project's exposed ports. Verify:
+
+## 4. Find the real Caddyfile fms-caddy is using
+
 ```bash
-docker compose logs -f admin
-curl -I http://127.0.0.1:3100/login     # expect HTTP 200
+docker inspect fms-caddy --format '{{json .Mounts}}' | node -e "process.stdin.resume();process.stdin.on('data',d=>console.log(JSON.parse(d)))"
+# or just:
+docker inspect fms-caddy --format '{{range .Mounts}}{{.Source}} -> {{.Destination}}{{"\n"}}{{end}}'
+
+# also grab the exact startup command, so the reload command matches it:
+docker inspect fms-caddy --format '{{json .Config.Cmd}}'
 ```
+This tells us the **host path** to edit and the **container path** to pass
+to `caddy reload --config`. Send me this output before the next step — I'll
+give you the exact append + reload commands rather than guessing paths on a
+container that's serving a live project.
 
-## 4. Add the Caddy site block (additive, no edits to existing blocks)
+## 5. Append the site block (once path is confirmed)
 
-Find out how Caddy is configured on this host — it's one of two setups:
-
-**A. Plain Caddyfile** (most common) — find it:
-```bash
-find / -iname "Caddyfile" 2>/dev/null
-```
-Then **append** (don't replace anything) the contents of
-[`Caddyfile`](Caddyfile) to the end of that file:
+Append (never overwrite) the contents of [`Caddyfile`](Caddyfile) to the end
+of the real Caddyfile found in step 4:
 ```
 halt.loankard.com {
-    reverse_proxy 127.0.0.1:3100
+    reverse_proxy halting-admin:3100
 }
 ```
-Reload (zero downtime, doesn't touch other sites):
+Then reload just that one container's config, zero downtime, other sites
+untouched:
 ```bash
-caddy fmt --overwrite /path/to/Caddyfile   # optional sanity check
-caddy reload --config /path/to/Caddyfile
-# or, if Caddy runs as a system service:
-sudo systemctl reload caddy
-# or, if Caddy runs in Docker:
-docker exec <caddy-container-name> caddy reload --config /etc/caddy/Caddyfile
+docker exec fms-caddy caddy reload --config <container-path-from-step-4>
 ```
 
-**B. Caddy Docker Proxy** (routes purely from container labels, common in
-Coolify/Dokploy-style setups) — check:
-```bash
-docker inspect <caddy-container-name> --format '{{.Config.Image}}'
-# if it's lucaslorentz/caddy-docker-proxy, use labels instead of a Caddyfile
-```
-If so, edit `docker-compose.yml`: delete the `ports:` block on the `admin`
-service and uncomment the `networks:`/`labels:` block already sketched at the
-bottom of that file (join whatever Docker network the existing Caddy
-container uses — check with `docker inspect <caddy-container-name> | grep -A3 Networks`).
-Then `docker compose up -d --build` again — Caddy picks up the new labels
-automatically, no reload needed.
-
-Not sure which applies? Run:
-```bash
-docker ps --filter ancestor=caddy --filter ancestor=lucaslorentz/caddy-docker-proxy
-```
-and tell me the output — I'll give the exact next command.
-
-## 5. Verify
+## 6. Verify
 
 ```bash
 curl -I https://halt.loankard.com/login    # expect HTTP 200, valid cert
@@ -100,13 +83,15 @@ Open `https://halt.loankard.com` and log in with an admin account
 cd ~/halting && git pull
 docker compose up -d --build
 ```
-Only rebuilds/restarts the `halting-admin` container — everything else on the
-server is untouched.
+Only rebuilds/restarts `halting-admin` — nothing else on the server is
+touched, and the network attachment persists across rebuilds.
 
 ## Notes
-- Container runs as non-root, binds to loopback only — Caddy handles TLS.
+- Container runs as non-root; its 3100 port is only exposed to
+  `127.0.0.1` (host-side testing) and the `halting-shared` network (for
+  `fms-caddy`) — never directly to the internet.
 - `docker-compose.yml` sets `name: halting` (its own Compose project
-  namespace), so `docker compose down` here can never affect containers
-  belonging to your other project even if invoked from a parent directory.
+  namespace), so `docker compose down` here can never affect `fleetsathi`/
+  `fms` containers even if run from a parent directory.
 - No server secrets in the image — privileged actions go through Supabase
   edge functions (service-role key never leaves Supabase).
