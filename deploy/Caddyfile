@@ -1,9 +1,10 @@
 # Halting admin panel — Caddy site block for halt.loankard.com
 # DNS is already correct: halt.loankard.com → 94.136.189.234
 #
-# This is an ADDITIVE block — append it to the END of the Caddyfile that
-# `fms-caddy` actually mounts (found via docker inspect, see deploy/README.md).
-# Do not remove or reorder any existing site blocks in that file.
+# This is an ADDITIVE block — append it to the END of
+# /root/fleetsathi/Caddyfile on the server (confirmed via `docker inspect
+# fms-caddy`, mounted to /etc/caddy/Caddyfile in that container). Do not
+# remove or reorder any existing site blocks in that file.
 #
 # "halting-admin" resolves via Docker's embedded DNS because both containers
 # share the "halting-shared" network (see docker-compose.yml + README step 2).

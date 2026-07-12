@@ -39,34 +39,33 @@ docker compose ps             # expect "halting-admin" Up
 curl -I http://127.0.0.1:3100/login   # expect HTTP 200 (host-side sanity check)
 ```
 
-## 4. Find the real Caddyfile fms-caddy is using
+## 4. Confirmed: the real Caddyfile
 
+From `docker inspect fms-caddy`:
+```
+/root/fleetsathi/Caddyfile -> /etc/caddy/Caddyfile
+```
+Host path to edit: **`/root/fleetsathi/Caddyfile`**.
+Container path (for reload): **`/etc/caddy/Caddyfile`** (Caddy's default, so
+`fms-caddy` was started with a plain `caddy run --config /etc/caddy/Caddyfile`
+or equivalent — no non-standard flags to worry about).
+
+## 5. Append the site block
+
+**Append only** — never overwrite `/root/fleetsathi/Caddyfile`, it serves
+your live `fleetsathi` project too:
 ```bash
-docker inspect fms-caddy --format '{{json .Mounts}}' | node -e "process.stdin.resume();process.stdin.on('data',d=>console.log(JSON.parse(d)))"
-# or just:
-docker inspect fms-caddy --format '{{range .Mounts}}{{.Source}} -> {{.Destination}}{{"\n"}}{{end}}'
+cat >> /root/fleetsathi/Caddyfile <<'EOF'
 
-# also grab the exact startup command, so the reload command matches it:
-docker inspect fms-caddy --format '{{json .Config.Cmd}}'
-```
-This tells us the **host path** to edit and the **container path** to pass
-to `caddy reload --config`. Send me this output before the next step — I'll
-give you the exact append + reload commands rather than guessing paths on a
-container that's serving a live project.
-
-## 5. Append the site block (once path is confirmed)
-
-Append (never overwrite) the contents of [`Caddyfile`](Caddyfile) to the end
-of the real Caddyfile found in step 4:
-```
 halt.loankard.com {
     reverse_proxy halting-admin:3100
 }
+EOF
 ```
 Then reload just that one container's config, zero downtime, other sites
 untouched:
 ```bash
-docker exec fms-caddy caddy reload --config <container-path-from-step-4>
+docker exec fms-caddy caddy reload --config /etc/caddy/Caddyfile
 ```
 
 ## 6. Verify

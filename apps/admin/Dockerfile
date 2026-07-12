@@ -28,8 +28,10 @@ ENV NODE_ENV=production \
 
 RUN addgroup -g 1001 nodejs && adduser -u 1001 -G nodejs -S nextjs
 
-# Standalone server + traced deps (incl. @halting/shared) and static assets.
-COPY --from=build --chown=nextjs:nodejs /app/.next/standalone ./
+# Next puts .next inside the app's own dir (apps/admin/.next), not the repo
+# root, even with outputFileTracingRoot set — that setting only affects which
+# files get traced into standalone, not where .next itself lives.
+COPY --from=build --chown=nextjs:nodejs /app/apps/admin/.next/standalone ./
 COPY --from=build --chown=nextjs:nodejs /app/apps/admin/.next/static ./apps/admin/.next/static
 
 USER nextjs
