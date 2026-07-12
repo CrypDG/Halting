@@ -1,0 +1,10 @@
+# Halting admin panel — Caddy site block for halt.loankard.com
+# DNS is already correct: halt.loankard.com → 94.136.189.234
+#
+# This is an ADDITIVE snippet — do not replace your existing Caddyfile.
+# See deploy/README.md for the 3 ways to add this without touching
+# whatever is already running on the server.
+
+halt.loankard.com {
+    reverse_proxy 127.0.0.1:3100
+}

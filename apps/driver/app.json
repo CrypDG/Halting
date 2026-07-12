@@ -1,0 +1,24 @@
+{
+  "expo": {
+    "name": "Halting Driver",
+    "slug": "halting-driver",
+    "version": "0.1.0",
+    "scheme": "halting-driver",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "android": {
+      "package": "app.halting.driver",
+      "permissions": ["ACCESS_COARSE_LOCATION", "ACCESS_FINE_LOCATION"]
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Halting streams your location to customers while you are online or on a trip."
+        }
+      ]
+    ]
+  }
+}
