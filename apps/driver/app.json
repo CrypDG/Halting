@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "Acting Driver",
-    "slug": "acting-driver",
+    "slug": "actingdriver",
     "version": "0.1.0",
     "scheme": "acting-driver",
     "orientation": "portrait",
@@ -9,7 +9,12 @@
     "newArchEnabled": true,
     "android": {
       "package": "app.acting.driver",
-      "permissions": ["ACCESS_COARSE_LOCATION", "ACCESS_FINE_LOCATION"]
+      "permissions": [
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION"
+      ]
     },
     "plugins": [
       "expo-router",
@@ -19,6 +24,13 @@
           "locationAlwaysAndWhenInUsePermission": "Acting streams your location to customers while you are online or on a trip."
         }
       ]
-    ]
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "32e6bb1a-145f-483a-b528-5e41b980012b"
+      }
+    },
+    "owner": "actingdrivers-team"
   }
 }

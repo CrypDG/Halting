@@ -9,7 +9,12 @@
     "newArchEnabled": true,
     "android": {
       "package": "app.acting.customer",
-      "permissions": ["ACCESS_COARSE_LOCATION", "ACCESS_FINE_LOCATION"]
+      "permissions": [
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION"
+      ]
     },
     "plugins": [
       "expo-router",
@@ -19,6 +24,13 @@
           "locationWhenInUsePermission": "Acting uses your location to find professional drivers near your vehicle."
         }
       ]
-    ]
+    ],
+    "owner": "actingdrivers-team",
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "ff78672a-3eb8-4c07-ba9c-033cb749f58c"
+      }
+    }
   }
 }
