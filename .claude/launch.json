@@ -6,6 +6,12 @@
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev", "--workspace", "@acting/admin"],
       "port": 3100
+    },
+    {
+      "name": "landing",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev", "--workspace", "@acting/landing"],
+      "port": 3200
     }
   ]
 }

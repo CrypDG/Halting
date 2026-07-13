@@ -1,0 +1,59 @@
+@import "tailwindcss";
+
+/* ── Acting design tokens — the "road world" palette ──────────────────── */
+@theme {
+  --color-asphalt: #0d0f13;      /* near-black base, cool-warm neutral */
+  --color-asphalt-800: #16191f;
+  --color-asphalt-700: #20242c;
+  --color-asphalt-600: #2c313b;
+  --color-paper: #f5f2ea;        /* warm off-white */
+  --color-paper-dim: #d9d4c7;
+  --color-amber: #ffb020;        /* hi-vis safety amber — the one bold accent */
+  --color-amber-deep: #e0940a;
+  --color-verified: #22a06b;     /* trust green, badges only */
+  --color-steel: #8b93a1;        /* muted structural gray-blue */
+  --color-steel-dim: #5b6270;
+
+  --font-display: var(--font-space-grotesk), ui-sans-serif, system-ui, sans-serif;
+  --font-body: var(--font-instrument), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-space-mono), ui-monospace, monospace;
+}
+
+* { -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; }
+
+html { scroll-behavior: smooth; }
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; transition-duration: 0.001ms !important; }
+}
+
+body {
+  background: var(--color-asphalt);
+  color: var(--color-paper);
+  font-family: var(--font-body);
+}
+
+/* hi-vis dashed road-marking underline used on the wordmark + section kickers */
+.road-tick {
+  background-image: repeating-linear-gradient(90deg, var(--color-amber) 0 10px, transparent 10px 20px);
+}
+
+/* soft grain to keep dark surfaces from looking flat/plastic */
+.grain::before {
+  content: ""; position: absolute; inset: 0; pointer-events: none; opacity: 0.035; mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+@keyframes rise {
+  from { opacity: 0; transform: translateY(18px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.rise { animation: rise 0.7s cubic-bezier(0.2, 0.7, 0.2, 1) both; }
+
+@keyframes sweep {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(300%); }
+}
+.verify-sweep { animation: sweep 2.4s cubic-bezier(0.4, 0, 0.2, 1) infinite; }
+
+::selection { background: var(--color-amber); color: var(--color-asphalt); }
