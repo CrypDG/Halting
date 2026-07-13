@@ -1,15 +1,18 @@
-# Acting admin panel — Caddy site block for acting.loankard.com
-# DNS is already correct: acting.loankard.com → 94.136.189.234
+# Acting — Caddy site blocks. Append these to the END of
+# /root/fleetsathi/Caddyfile on the server (mounted into fms-caddy at
+# /etc/caddy/Caddyfile). Do not remove or reorder the existing fleetsathi
+# blocks. Both hostnames resolve to 94.136.189.234 via DNS.
 #
-# This is an ADDITIVE block — append it to the END of
-# /root/fleetsathi/Caddyfile on the server (confirmed via `docker inspect
-# fms-caddy`, mounted to /etc/caddy/Caddyfile in that container). Do not
-# remove or reorder any existing site blocks in that file.
-#
-# "acting-admin" resolves via Docker's embedded DNS because both containers
-# share the "acting-shared" network (see docker-compose.yml + README step 2).
-# Port 3100 here is the CONTAINER's internal port, not a host port.
+# Container hostnames resolve via Docker's embedded DNS because acting-landing
+# and acting-admin share the "acting-shared" network with fms-caddy.
+# Ports are the CONTAINERS' internal ports, not host ports.
 
+# Public marketing website
 acting.loankard.com {
+    reverse_proxy acting-landing:3200
+}
+
+# Staff operations panel
+admin.acting.loankard.com {
     reverse_proxy acting-admin:3100
 }

@@ -30,6 +30,20 @@ services:
       - shared
     restart: unless-stopped
 
+  # Public marketing website. fms-caddy reaches it as "acting-landing:3200"
+  # on the shared network; serves acting.loankard.com.
+  landing:
+    container_name: acting-landing
+    build:
+      context: .
+      dockerfile: apps/landing/Dockerfile
+    ports:
+      - "127.0.0.1:3200:3200"
+    networks:
+      - default
+      - shared
+    restart: unless-stopped
+
 networks:
   shared:
     name: acting-shared

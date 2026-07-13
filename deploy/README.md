@@ -1,96 +1,71 @@
-# Deploying the Acting admin panel → acting.loankard.com (94.136.189.234)
+# Deploying Acting on the Contabo server (94.136.189.234)
 
-**Confirmed server topology** (from live `docker ps` on 2026-07-12):
-- Existing project `fleetsathi`/`fms`: containers `fms-app`, `fms-cron`,
-  `fms-backup`, `fleetsathi-postgres`, and **`fms-caddy`** (image
-  `caddy:2-alpine`) — `fms-caddy` owns host ports 80/443 and reads a static
-  Caddyfile (`docker inspect` its mounts to find the exact path).
-- DNS for `acting.loankard.com` already points at this server.
+Two containers, both behind the existing `fms-caddy` reverse proxy, alongside
+the untouched `fleetsathi` project:
 
-Because Caddy runs in its **own container**, `reverse_proxy 127.0.0.1:3100`
-would not work (127.0.0.1 inside `fms-caddy` means itself, not the host). The
-fix: put `acting-admin` and `fms-caddy` on a shared Docker network and
-reference it by container name. `docker network connect` attaches a network
-to an already-running container **without restarting it** — `fms-caddy` and
-your other project are never touched.
+| Hostname | Container | Purpose |
+|---|---|---|
+| `acting.loankard.com` | `acting-landing` (:3200) | Public marketing website |
+| `admin.acting.loankard.com` | `acting-admin` (:3100) | Staff operations panel |
 
-## 1. Get the code onto the server (done)
+Both containers join the `acting-shared` Docker network so `fms-caddy` can
+reach them by name. `fms-caddy` mounts `/root/fleetsathi/Caddyfile` at
+`/etc/caddy/Caddyfile` — because it's a **single-file bind mount**, config
+changes need a container **restart**, not just `caddy reload`.
 
-```bash
-git clone https://github.com/CrypDG/Acting.git ~/acting
+## 1. DNS (one new record — do this first)
+
+`acting.loankard.com` already points at the server. Add:
 ```
-
-## 2. Create the shared network and join it to fms-caddy (one-time, non-disruptive)
-
-```bash
-docker network create acting-shared
-docker network connect acting-shared fms-caddy
+admin.acting.loankard.com   A   94.136.189.234
 ```
-`docker network connect` on a running container doesn't restart it or drop
-its existing connections — this is safe to run against `fms-caddy` live.
+Wait for it to resolve before step 4 or Caddy can't issue its TLS cert.
 
-## 3. Build & run the admin panel
+## 2. Pull code + build both containers
 
 ```bash
-cd ~/acting
-git pull                      # if you cloned before this compose update
+cd ~/halting
+git pull
+# acting-shared network already exists from the earlier admin deploy; if not:
+#   docker network create acting-shared && docker network connect acting-shared fms-caddy
 docker compose up -d --build
-docker compose ps             # expect "acting-admin" Up
-curl -I http://127.0.0.1:3100/login   # expect HTTP 200 (host-side sanity check)
+docker compose ps                          # expect acting-admin + acting-landing Up
+curl -I http://127.0.0.1:3200/             # website — expect 200
+curl -I http://127.0.0.1:3100/login        # admin — expect 200
 ```
 
-## 4. Confirmed: the real Caddyfile
+## 3. Swap the Caddy site blocks
 
-From `docker inspect fms-caddy`:
-```
-/root/fleetsathi/Caddyfile -> /etc/caddy/Caddyfile
-```
-Host path to edit: **`/root/fleetsathi/Caddyfile`**.
-Container path (for reload): **`/etc/caddy/Caddyfile`** (Caddy's default, so
-`fms-caddy` was started with a plain `caddy run --config /etc/caddy/Caddyfile`
-or equivalent — no non-standard flags to worry about).
-
-## 5. Append the site block
-
-**Append only** — never overwrite `/root/fleetsathi/Caddyfile`, it serves
-your live `fleetsathi` project too:
+Edit `/root/fleetsathi/Caddyfile`. Remove the old single `acting.loankard.com`
+block (the one pointing at `acting-admin:3100`) and append the two blocks from
+[`Caddyfile`](Caddyfile):
 ```bash
+cp /root/fleetsathi/Caddyfile /root/fleetsathi/Caddyfile.bak
+# remove the previous acting block:
+sed -i '/^acting\.loankard\.com {$/,/^}$/d' /root/fleetsathi/Caddyfile
 cat >> /root/fleetsathi/Caddyfile <<'EOF'
 
 acting.loankard.com {
+    reverse_proxy acting-landing:3200
+}
+
+admin.acting.loankard.com {
     reverse_proxy acting-admin:3100
 }
 EOF
 ```
-Then reload just that one container's config, zero downtime, other sites
-untouched:
-```bash
-docker exec fms-caddy caddy reload --config /etc/caddy/Caddyfile
-```
 
-## 6. Verify
+## 4. Restart Caddy (single-file mount ⇒ restart, not reload)
 
 ```bash
-curl -I https://acting.loankard.com/login    # expect HTTP 200, valid cert
+docker restart fms-caddy
+sleep 5
+curl -I https://acting.loankard.com/            # website — 200
+curl -I https://admin.acting.loankard.com/login # admin — 200
 ```
-Open `https://acting.loankard.com` and log in with an admin account
-(`admin@acting.dev` / `Acting123!`).
 
 ## Updating later
-
 ```bash
-cd ~/acting && git pull
-docker compose up -d --build
+cd ~/halting && git pull && docker compose up -d --build
 ```
-Only rebuilds/restarts `acting-admin` — nothing else on the server is
-touched, and the network attachment persists across rebuilds.
-
-## Notes
-- Container runs as non-root; its 3100 port is only exposed to
-  `127.0.0.1` (host-side testing) and the `acting-shared` network (for
-  `fms-caddy`) — never directly to the internet.
-- `docker-compose.yml` sets `name: acting` (its own Compose project
-  namespace), so `docker compose down` here can never affect `fleetsathi`/
-  `fms` containers even if run from a parent directory.
-- No server secrets in the image — privileged actions go through Supabase
-  edge functions (service-role key never leaves Supabase).
+Rebuilds both Acting containers; fleetsathi and Caddy config are untouched.
