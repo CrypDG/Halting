@@ -2,8 +2,8 @@ import type { Metadata } from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'Halting Admin',
-  description: 'Halting operations panel',
+  title: 'Acting Admin',
+  description: 'Acting operations panel',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

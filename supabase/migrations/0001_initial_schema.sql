@@ -1,4 +1,4 @@
--- Halting initial schema (PRD v1.0)
+-- Acting initial schema (PRD v1.0)
 create extension if not exists postgis with schema extensions;
 
 -- ── Enums ────────────────────────────────────────────────────────────────

@@ -4,7 +4,7 @@
     {
       "name": "admin",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev", "--workspace", "@halting/admin"],
+      "runtimeArgs": ["run", "dev", "--workspace", "@acting/admin"],
       "port": 3100
     }
   ]

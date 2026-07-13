@@ -1,14 +1,14 @@
 {
   "expo": {
-    "name": "Halting",
-    "slug": "halting-customer",
+    "name": "Acting",
+    "slug": "acting-customer",
     "version": "0.1.0",
-    "scheme": "halting",
+    "scheme": "acting",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "android": {
-      "package": "app.halting.customer",
+      "package": "app.acting.customer",
       "permissions": ["ACCESS_COARSE_LOCATION", "ACCESS_FINE_LOCATION"]
     },
     "plugins": [
@@ -16,7 +16,7 @@
       [
         "expo-location",
         {
-          "locationWhenInUsePermission": "Halting uses your location to find professional drivers near your vehicle."
+          "locationWhenInUsePermission": "Acting uses your location to find professional drivers near your vehicle."
         }
       ]
     ]

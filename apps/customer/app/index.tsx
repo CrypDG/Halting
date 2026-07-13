@@ -3,7 +3,7 @@ import { FlatList, ScrollView, Text, TextInput, TouchableOpacity, View } from 'r
 import { router } from 'expo-router';
 import * as Location from 'expo-location';
 import MapView, { Marker } from 'react-native-maps';
-import { getCategory, mockKycProvider, VEHICLE_CATEGORIES, type VehicleCategorySlug } from '@halting/shared';
+import { getCategory, mockKycProvider, VEHICLE_CATEGORIES, type VehicleCategorySlug } from '@acting/shared';
 import { callFn, supabase } from '@/lib/supabase';
 import { colors, ui } from '@/lib/ui';
 

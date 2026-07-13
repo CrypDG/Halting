@@ -1,6 +1,6 @@
-# Halting admin panel — production image (Next.js standalone).
-# Build from the REPO ROOT (needs the @halting/shared workspace):
-#   docker build -f apps/admin/Dockerfile -t halting-admin .
+# Acting admin panel — production image (Next.js standalone).
+# Build from the REPO ROOT (needs the @acting/shared workspace):
+#   docker build -f apps/admin/Dockerfile -t acting-admin .
 
 # ── build stage ───────────────────────────────────────────────────────────
 FROM node:22-alpine AS build
@@ -16,7 +16,7 @@ ENV NEXT_PUBLIC_SUPABASE_URL=$NEXT_PUBLIC_SUPABASE_URL \
 COPY . .
 # --ignore-scripts skips the Expo/React-Native postinstall hooks we don't need here.
 RUN npm ci --ignore-scripts
-RUN npm run build -w @halting/admin
+RUN npm run build -w @acting/admin
 
 # ── runtime stage ─────────────────────────────────────────────────────────
 FROM node:22-alpine AS runtime

@@ -9,7 +9,7 @@ import {
   VEHICLE_CATEGORIES,
   type LicenseClass,
   type VehicleCategorySlug,
-} from '@halting/shared';
+} from '@acting/shared';
 import { supabase } from '@/lib/supabase';
 import { colors, ui } from '@/lib/ui';
 
@@ -257,7 +257,7 @@ export default function Register() {
       body: (
         <>
           <Text style={ui.muted}>
-            Everything is in. Submit your profile — Halting operations will review your documents and approve you.
+            Everything is in. Submit your profile — Acting operations will review your documents and approve you.
           </Text>
           <TouchableOpacity
             style={[ui.btn, ui.btnGreen, { marginTop: 16 }]}

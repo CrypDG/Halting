@@ -46,7 +46,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   return (
     <div className="flex min-h-screen">
       <aside className="w-60 shrink-0 border-r border-slate-200 bg-white p-4">
-        <h1 className="mb-6 px-2 text-lg font-bold">Halting Ops</h1>
+        <h1 className="mb-6 px-2 text-lg font-bold">Acting Ops</h1>
         <nav className="space-y-1">
           {NAV.map((n) => (
             <Link

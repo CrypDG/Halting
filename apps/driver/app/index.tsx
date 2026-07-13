@@ -198,7 +198,7 @@ export default function DriverHome() {
 
   return (
     <ScrollView style={ui.screen} contentContainerStyle={{ paddingBottom: 40 }}>
-      <Text style={ui.h1}>Halting Driver</Text>
+      <Text style={ui.h1}>Acting Driver</Text>
       <Text style={[ui.muted, { marginBottom: 16 }]}>
         {profile.trips_completed} trips · ★ {profile.rating_avg ?? '—'} · {profile.license_classes.join(', ')}
       </Text>

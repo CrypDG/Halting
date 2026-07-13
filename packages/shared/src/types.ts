@@ -8,7 +8,7 @@ export type VehicleCategorySlug =
   | 'crane'
   | 'earth_mover';
 
-/** Indian driving-license classes / endorsements relevant to Halting. */
+/** Indian driving-license classes / endorsements relevant to Acting. */
 export type LicenseClass =
   | 'LMV'
   | 'LMV_TR'

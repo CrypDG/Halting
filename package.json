@@ -1,5 +1,5 @@
 {
-  "name": "halting",
+  "name": "acting",
   "private": true,
   "workspaces": [
     "apps/*",

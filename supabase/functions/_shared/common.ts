@@ -43,7 +43,7 @@ export async function getCaller(req: Request, supa: SupabaseClient) {
   return data.user;
 }
 
-// ── Business rules (mirror of @halting/shared — keep in sync) ─────────────
+// ── Business rules (mirror of @acting/shared — keep in sync) ─────────────
 export type TripStatus =
   | 'requested' | 'accepted' | 'driver_arrived' | 'started' | 'in_progress'
   | 'completed' | 'paid' | 'closed'

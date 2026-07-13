@@ -5,7 +5,7 @@ set -euo pipefail
 
 URL="https://pybxdufrmnhgneupsssi.supabase.co"
 ANON="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB5YnhkdWZybW5oZ25ldXBzc3NpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM4MzU0MjMsImV4cCI6MjA5OTQxMTQyM30.GgRA6zHueRJ4yZBGfVJglPMtNkvz52piHHCME8iN-JE"
-PASS="Halting123!"
+PASS="Acting123!"
 
 login() {
   curl -s "$URL/auth/v1/token?grant_type=password" \
@@ -22,8 +22,8 @@ rpc() { # name token body
 }
 
 echo "── login"
-CUST=$(login customer@halting.dev)
-DRV=$(login driver1@halting.dev)
+CUST=$(login customer@acting.dev)
+DRV=$(login driver1@acting.dev)
 echo "tokens ok: cust=${#CUST} drv=${#DRV}"
 
 echo "── driver1 goes online at T Nagar"

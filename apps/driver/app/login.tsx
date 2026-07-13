@@ -37,7 +37,7 @@ export default function Login() {
 
   return (
     <View style={[ui.screen, { justifyContent: 'center' }]}>
-      <Text style={ui.h1}>Halting Driver</Text>
+      <Text style={ui.h1}>Acting Driver</Text>
       <Text style={[ui.muted, { marginBottom: 24 }]}>
         {mode === 'signin' ? 'Sign in to start driving' : 'Create your driver account'}
       </Text>

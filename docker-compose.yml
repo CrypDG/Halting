@@ -1,17 +1,17 @@
-# Halting admin panel — deploys standalone alongside your existing project(s).
+# Acting admin panel — deploys standalone alongside your existing project(s).
 # Build & run:
 #   docker compose up -d --build
-# Serves on 127.0.0.1:3100 for local testing, AND on the "halting-shared"
-# Docker network as hostname "halting-admin:3100" for the existing fms-caddy
+# Serves on 127.0.0.1:3100 for local testing, AND on the "acting-shared"
+# Docker network as hostname "acting-admin:3100" for the existing fms-caddy
 # container to reach (127.0.0.1 doesn't cross container boundaries).
 # See deploy/README.md for the one-time network setup.
 #
 # Uses its own project name so `docker compose down` here can never touch
 # your other project's containers, even if run from the same parent dir.
-name: halting
+name: acting
 services:
   admin:
-    container_name: halting-admin
+    container_name: acting-admin
     build:
       context: .
       dockerfile: apps/admin/Dockerfile
@@ -32,5 +32,5 @@ services:
 
 networks:
   shared:
-    name: halting-shared
+    name: acting-shared
     external: true

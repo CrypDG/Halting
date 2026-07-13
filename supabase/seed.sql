@@ -1,4 +1,4 @@
--- Halting seed data (dev). All accounts use password: Halting123!
+-- Acting seed data (dev). All accounts use password: Acting123!
 create extension if not exists pgcrypto with schema extensions;
 
 -- ── Vehicle categories (PRD §2.2) ────────────────────────────────────────
@@ -29,11 +29,11 @@ declare
 begin
   for u in
     select * from (values
-      ('10000000-0000-0000-0000-000000000001'::uuid, 'admin@halting.dev',    'admin',    'Halting Admin'),
-      ('10000000-0000-0000-0000-000000000002'::uuid, 'customer@halting.dev', 'customer', 'Ravi Customer'),
-      ('10000000-0000-0000-0000-000000000011'::uuid, 'driver1@halting.dev',  'driver',   'Kumar (Car LMV)'),
-      ('10000000-0000-0000-0000-000000000012'::uuid, 'driver2@halting.dev',  'driver',   'Selvam (HMV Crane/Truck)'),
-      ('10000000-0000-0000-0000-000000000013'::uuid, 'driver3@halting.dev',  'driver',   'Mani (School Bus, pending)')
+      ('10000000-0000-0000-0000-000000000001'::uuid, 'admin@acting.dev',    'admin',    'Acting Admin'),
+      ('10000000-0000-0000-0000-000000000002'::uuid, 'customer@acting.dev', 'customer', 'Ravi Customer'),
+      ('10000000-0000-0000-0000-000000000011'::uuid, 'driver1@acting.dev',  'driver',   'Kumar (Car LMV)'),
+      ('10000000-0000-0000-0000-000000000012'::uuid, 'driver2@acting.dev',  'driver',   'Selvam (HMV Crane/Truck)'),
+      ('10000000-0000-0000-0000-000000000013'::uuid, 'driver3@acting.dev',  'driver',   'Mani (School Bus, pending)')
     ) as t(id, email, role, full_name)
   loop
     insert into auth.users (
@@ -42,7 +42,7 @@ begin
       confirmation_token, recovery_token, email_change, email_change_token_new
     ) values (
       u.id, '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated',
-      u.email, extensions.crypt('Halting123!', extensions.gen_salt('bf')), now(),
+      u.email, extensions.crypt('Acting123!', extensions.gen_salt('bf')), now(),
       '{"provider":"email","providers":["email"]}'::jsonb,
       jsonb_build_object('role', u.role, 'full_name', u.full_name),
       now(), now(), '', '', '', ''
