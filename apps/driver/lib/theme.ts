@@ -9,9 +9,9 @@ export const c = {
   border: '#E8EAEF',
   borderStrong: '#D9DCE3',
 
-  brand: '#4F46E5',
-  brandDeep: '#3730A3',
-  brandSoft: '#EEF0FE',
+  brand: '#E0940A',
+  brandDeep: '#B8760A',
+  brandSoft: '#FBF0DE',
 
   online: '#0FA968',
   onlineSoft: '#E4F6EE',

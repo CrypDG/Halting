@@ -36,6 +36,7 @@ export default function Home() {
   const insets = useSafeAreaInsets();
   const [uid, setUid] = useState<string | null>(null);
   const [name, setName] = useState('Driver');
+  const [photo, setPhoto] = useState<string | null>(null);
   const [rating, setRating] = useState<number | null>(null);
   const [lifetime, setLifetime] = useState(0);
   const [licenceClasses, setLicenceClasses] = useState<string[]>([]);
@@ -73,8 +74,9 @@ export default function Home() {
     supabase.auth.getSession().then(async ({ data }) => {
       if (!data.session) return router.replace('/login');
       setUid(data.session.user.id);
-      const { data: p } = await supabase.from('profiles').select('full_name').eq('id', data.session.user.id).maybeSingle();
+      const { data: p } = await supabase.from('profiles').select('full_name, photo_url').eq('id', data.session.user.id).maybeSingle();
       if (p?.full_name) setName(p.full_name);
+      setPhoto(p?.photo_url ?? null);
       refresh(data.session.user.id);
     });
   }, [refresh]);
@@ -144,7 +146,7 @@ export default function Home() {
   return (
     <ScrollView style={{ flex: 1, backgroundColor: c.bg }} contentContainerStyle={{ paddingTop: insets.top + s.md, padding: s.lg, paddingBottom: s.xxxl, gap: s.lg }} showsVerticalScrollIndicator={false}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: s.md }}>
-        <Avatar name={name} />
+        <Avatar name={name} uri={photo} />
         <View style={{ flex: 1 }}>
           <Text style={[t.small, { color: c.inkFaint }]}>{greeting()},</Text>
           <Text style={[t.h2, { color: c.ink }]} numberOfLines={1}>{name}</Text>

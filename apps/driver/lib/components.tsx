@@ -1,5 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
-import { ActivityIndicator, Pressable, StyleSheet, Switch, Text, View, type ViewStyle } from 'react-native';
+import { router } from 'expo-router';
+import { ActivityIndicator, Image, Pressable, StyleSheet, Switch, Text, TextInput, View, type TextInputProps, type ViewStyle } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { c, r, s, shadow, type as t } from './theme';
 
 export function Card({ children, style }: { children: React.ReactNode; style?: ViewStyle }) {
@@ -107,16 +109,48 @@ export function StatTile({
   );
 }
 
-export function Avatar({ name, size = 44 }: { name: string; size?: number }) {
+export function Avatar({ name, size = 44, uri }: { name: string; size?: number; uri?: string | null }) {
   const initials = name
     .split(/\s+/)
     .slice(0, 2)
     .map((w) => w[0])
     .join('')
     .toUpperCase();
+  if (uri) {
+    return <Image source={{ uri }} style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: c.surfaceAlt }} />;
+  }
   return (
     <View style={[styles.avatar, { width: size, height: size, borderRadius: size / 2 }]}>
       <Text style={[styles.avatarText, { fontSize: size * 0.38 }]}>{initials || '?'}</Text>
+    </View>
+  );
+}
+
+/** Detail-screen header with a back button (root Stack has headers hidden). */
+export function Header({ title, right }: { title: string; right?: React.ReactNode }) {
+  const insets = useSafeAreaInsets();
+  return (
+    <View style={{ paddingTop: insets.top + s.sm, paddingBottom: s.sm, paddingHorizontal: s.md, backgroundColor: c.bg, flexDirection: 'row', alignItems: 'center', gap: s.sm, borderBottomWidth: 1, borderBottomColor: c.border }}>
+      <Pressable onPress={() => router.back()} hitSlop={10} style={({ pressed }) => [styles.backBtn, pressed && { opacity: 0.5 }]}>
+        <Ionicons name="chevron-back" size={24} color={c.ink} />
+      </Pressable>
+      <Text style={[t.h2, { color: c.ink, flex: 1 }]} numberOfLines={1}>{title}</Text>
+      {right}
+    </View>
+  );
+}
+
+/** Labeled text input for edit forms. */
+export function FormField({ label, hint, ...props }: { label: string; hint?: string } & TextInputProps) {
+  return (
+    <View style={{ gap: 6 }}>
+      <Text style={[t.label, { color: c.inkMuted }]}>{label}</Text>
+      <TextInput
+        placeholderTextColor={c.inkFaint}
+        style={styles.formInput}
+        {...props}
+      />
+      {hint ? <Text style={{ color: c.inkFaint, fontSize: 12 }}>{hint}</Text> : null}
     </View>
   );
 }
@@ -220,4 +254,6 @@ const styles = StyleSheet.create({
   rowInner: { flexDirection: 'row', alignItems: 'center', gap: s.md, paddingVertical: s.md, paddingHorizontal: s.md },
   rowBorder: { borderBottomWidth: 1, borderBottomColor: c.border },
   rowIcon: { width: 38, height: 38, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
+  backBtn: { width: 34, height: 34, alignItems: 'center', justifyContent: 'center' },
+  formInput: { borderWidth: 1.5, borderColor: c.border, borderRadius: r.md, paddingHorizontal: s.md, paddingVertical: 14, fontSize: 16, color: c.ink, backgroundColor: c.surface },
 });
