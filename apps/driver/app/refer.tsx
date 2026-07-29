@@ -23,9 +23,9 @@ export default function Refer() {
     <View style={{ flex: 1, backgroundColor: c.bg }}>
       <Header title="Refer a driver" />
       <View style={{ padding: s.lg, gap: s.lg }}>
-        <View style={[{ backgroundColor: c.ink, borderRadius: r.xl, padding: s.xl, alignItems: 'center' }, shadow.hero]}>
+        <View style={[{ backgroundColor: c.surfaceAlt, borderRadius: r.xl, padding: s.xl, alignItems: 'center' }, shadow.hero]}>
           <IconChip icon="gift" tint={c.gold} />
-          <Text style={{ color: c.onInk, fontSize: 22, fontWeight: '800', marginTop: s.md, textAlign: 'center' }}>Invite operators you trust</Text>
+          <Text style={{ color: c.ink, fontSize: 22, fontWeight: '800', marginTop: s.md, textAlign: 'center' }}>Invite operators you trust</Text>
           <Text style={{ color: 'rgba(255,255,255,0.72)', textAlign: 'center', marginTop: s.sm, lineHeight: 21 }}>
             When a driver you refer completes their first trip, you both earn a reward.
           </Text>

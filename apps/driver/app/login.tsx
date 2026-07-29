@@ -74,7 +74,7 @@ export default function Login() {
     <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, backgroundColor: c.bg }}>
       <ScrollView contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', padding: s.xl, paddingTop: insets.top + s.xxxl }} keyboardShouldPersistTaps="handled">
         <View style={{ alignItems: 'center', marginBottom: s.xxxl }}>
-          <View style={{ width: 68, height: 68, borderRadius: 20, backgroundColor: c.ink, alignItems: 'center', justifyContent: 'center' }}>
+          <View style={{ width: 68, height: 68, borderRadius: 20, backgroundColor: c.brand, alignItems: 'center', justifyContent: 'center' }}>
             <MaterialCommunityIcons name="steering" size={36} color={c.onInk} />
           </View>
           <Text style={[t.display, { color: c.ink, marginTop: s.lg }]}>Acting Driver</Text>

@@ -54,7 +54,7 @@ export default function ProfileEdit() {
           <View style={{ alignItems: 'center', gap: s.md }}>
             <Pressable onPress={changePhoto} disabled={uploading}>
               <Avatar name={name || 'Driver'} uri={photo} size={96} />
-              <View style={{ position: 'absolute', right: -2, bottom: -2, width: 34, height: 34, borderRadius: 17, backgroundColor: c.ink, alignItems: 'center', justifyContent: 'center', borderWidth: 3, borderColor: c.bg }}>
+              <View style={{ position: 'absolute', right: -2, bottom: -2, width: 34, height: 34, borderRadius: 17, backgroundColor: c.brand, alignItems: 'center', justifyContent: 'center', borderWidth: 3, borderColor: c.bg }}>
                 <Ionicons name={uploading ? 'hourglass' : 'camera'} size={16} color={c.onInk} />
               </View>
             </Pressable>

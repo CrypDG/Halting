@@ -48,9 +48,9 @@ export default function Safety() {
         <ScrollView contentContainerStyle={{ padding: s.lg, gap: s.lg }} keyboardShouldPersistTaps="handled">
           <Pressable onPress={sos} style={({ pressed }) => [{ backgroundColor: c.danger, borderRadius: r.xl, padding: s.xl, alignItems: 'center' }, shadow.hero, pressed && { opacity: 0.9, transform: [{ scale: 0.99 }] }]}>
             <View style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: 'rgba(255,255,255,0.18)', alignItems: 'center', justifyContent: 'center' }}>
-              <Ionicons name="warning" size={30} color={c.onInk} />
+              <Ionicons name="warning" size={30} color="#FFFFFF" />
             </View>
-            <Text style={{ color: c.onInk, fontSize: 22, fontWeight: '800', marginTop: s.md }}>SOS Emergency</Text>
+            <Text style={{ color: '#FFFFFF', fontSize: 22, fontWeight: '800', marginTop: s.md }}>SOS Emergency</Text>
             <Text style={{ color: 'rgba(255,255,255,0.85)', textAlign: 'center', marginTop: 4 }}>Call 112 and alert your contact with your live location</Text>
           </Pressable>
 

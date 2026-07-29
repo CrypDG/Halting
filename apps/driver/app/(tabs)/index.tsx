@@ -1,22 +1,26 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Alert, Platform, StyleSheet, Text, TextInput, View } from 'react-native';
 import { router } from 'expo-router';
 import * as Location from 'expo-location';
-import MapView, { Marker, Polyline, PROVIDER_GOOGLE } from 'react-native-maps';
+import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Animated, {
+  Easing, FadeIn, FadeInDown, FadeInUp, SlideInDown, useAnimatedStyle,
+  useSharedValue, withRepeat, withSequence, withSpring, withTiming,
+} from 'react-native-reanimated';
 import { calculateFare, haversineKm } from '@acting/shared';
 import { supabase, callFn } from '@/lib/supabase';
 import { MAP_STYLE } from '@/lib/mapStyle';
-import { c, money, r, s, shadow, type as t } from '@/lib/theme';
-import { Avatar, Badge, Button } from '@/lib/components';
+import { c, money, motion, r, s, shadow, type as t } from '@/lib/theme';
+import { Avatar, Badge, Button, Touch } from '@/lib/components';
 
 const CHENNAI = { latitude: 13.0827, longitude: 80.2707, latitudeDelta: 0.05, longitudeDelta: 0.05 };
 const LOCATION_PING_MS = 5000;
 
-type Trip = { id: string; status: string; trip_type: string; category_slug: string; pickup_address: string | null; destination_address: string | null; payment_mode: string; payment_status: string; fare_total: number | null; distance_km: number | null; customer_id: string; days: number | null; closed_at: string | null; };
+type Trip = { id: string; status: string; trip_type: string; category_slug: string; pickup_address: string | null; destination_address: string | null; payment_mode: string; payment_status: string; fare_total: number | null; distance_km: number | null; customer_id: string; days: number | null; closed_at: string | null };
 type Offer = { id: string; trip_id: string; distance_km: number | null; expires_at: string };
-type OfferDetail = { categoryLabel: string; catIcon: keyof typeof MaterialCommunityIcons.glyphMap; tripType: string; pickupAddr: string; destAddr: string | null; customerName: string; verified: boolean; estFare: number | null; rate: string };
+type OfferDetail = { categoryLabel: string; tripType: string; pickupAddr: string; destAddr: string | null; customerName: string; verified: boolean; estFare: number | null; rate: string };
 type Fee = { amount_inr: number; status: string; due_at: string };
 type Geo = { coordinates: [number, number] } | null;
 
@@ -68,7 +72,6 @@ export default function Home() {
     } else setOffer(null);
   }, []);
 
-  // fetch rich detail for an incoming offer (customer, category, est. fare)
   useEffect(() => {
     if (!offer || !uid) { setDetail(null); return; }
     (async () => {
@@ -76,11 +79,9 @@ export default function Home() {
       if (!tr) return;
       const [{ data: cust }, { data: dc }] = await Promise.all([
         supabase.from('profiles').select('full_name, kyc_verified_at').eq('id', tr.customer_id).maybeSingle(),
-        supabase.from('driver_categories').select('price_per_km, price_per_day, overtime_per_hour').eq('driver_id', uid).eq('category_slug', tr.category_slug).maybeSingle(),
+        supabase.from('driver_categories').select('price_per_km, price_per_day').eq('driver_id', uid).eq('category_slug', tr.category_slug).maybeSingle(),
       ]);
-      const m = cat(tr.category_slug);
-      let estFare: number | null = null;
-      let rate = '';
+      let estFare: number | null = null, rate = '';
       try {
         if (tr.trip_type === 'per_km' && dc?.price_per_km) {
           const p = tr.pickup_location as Geo, d = tr.destination_location as Geo;
@@ -91,8 +92,8 @@ export default function Home() {
           estFare = calculateFare({ tripType: 'per_day', days: tr.days ?? 1, pricing: { pricePerKm: null, pricePerDay: Number(dc.price_per_day), overtimePerHour: null } }).total;
           rate = `₹${dc.price_per_day}/day`;
         }
-      } catch { /* est optional */ }
-      setDetail({ categoryLabel: m.label, catIcon: m.icon, tripType: tr.trip_type, pickupAddr: tr.pickup_address ?? 'Pickup', destAddr: tr.destination_address, customerName: cust?.full_name ?? 'Customer', verified: !!cust?.kyc_verified_at, estFare, rate });
+      } catch { /* estimate is optional */ }
+      setDetail({ categoryLabel: cat(tr.category_slug).label, tripType: tr.trip_type, pickupAddr: tr.pickup_address ?? 'Pickup', destAddr: tr.destination_address, customerName: cust?.full_name ?? 'Customer', verified: !!cust?.kyc_verified_at, estFare, rate });
     })();
   }, [offer, uid]);
 
@@ -165,7 +166,7 @@ export default function Home() {
         if (status !== 'granted') throw new Error('Location permission is required to go online');
         const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
         setMeLoc({ latitude: pos.coords.latitude, longitude: pos.coords.longitude });
-        mapRef.current?.animateToRegion({ latitude: pos.coords.latitude, longitude: pos.coords.longitude, latitudeDelta: 0.02, longitudeDelta: 0.02 }, 500);
+        mapRef.current?.animateToRegion({ latitude: pos.coords.latitude, longitude: pos.coords.longitude, latitudeDelta: 0.02, longitudeDelta: 0.02 }, 700);
         const { error } = await supabase.rpc('go_online', { p_lat: pos.coords.latitude, p_lng: pos.coords.longitude });
         if (error) throw new Error(error.message);
       } else {
@@ -183,183 +184,214 @@ export default function Home() {
     <View style={{ flex: 1, backgroundColor: c.bg }}>
       <MapView
         ref={mapRef}
-        style={{ flex: 1 }}
+        style={StyleSheet.absoluteFill}
         provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
         customMapStyle={MAP_STYLE as any}
         initialRegion={CHENNAI}
         region={region}
         onRegionChangeComplete={setRegion}
-        showsUserLocation
+        showsUserLocation={!trip}
         showsMyLocationButton={false}
         showsCompass={false}
       >
-        {trip && meLoc && <Marker coordinate={meLoc} anchor={{ x: 0.5, y: 0.5 }}><View style={mapStyles.mePin}><MaterialCommunityIcons name={cat(trip.category_slug).icon} size={16} color={c.onInk} /></View></Marker>}
+        {trip && meLoc && (
+          <Marker coordinate={meLoc} anchor={{ x: 0.5, y: 0.5 }}>
+            <View style={st.mePin}><MaterialCommunityIcons name={cat(trip.category_slug).icon} size={16} color={c.onInk} /></View>
+          </Marker>
+        )}
       </MapView>
 
-      {/* Floating top bar */}
-      <View style={{ position: 'absolute', top: insets.top + s.sm, left: s.md, right: s.md, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-        <Pressable onPress={() => router.push('/account')} style={[mapStyles.fab, { padding: 0, overflow: 'hidden' }]}>
-          <Avatar name={name} uri={photo} size={44} />
-        </Pressable>
-        <View style={[mapStyles.pill, shadow.card]}>
-          <Ionicons name="trending-up" size={16} color={c.online} />
-          <Text style={{ fontWeight: '700', fontSize: 14, color: c.ink }}>{money(todayEarnings)} today</Text>
+      {/* top bar */}
+      <Animated.View entering={FadeInDown.delay(80).springify().damping(18)} style={{ position: 'absolute', top: insets.top + s.sm, left: s.md, right: s.md, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+        <Touch onPress={() => router.push('/account')} style={[st.fab, shadow.card]}>
+          <Avatar name={name} uri={photo} size={46} />
+        </Touch>
+        <View style={[st.pill, shadow.card]}>
+          <Ionicons name="trending-up" size={15} color={c.online} />
+          <Text style={{ fontWeight: '800', fontSize: 14, color: c.ink, letterSpacing: -0.2 }}>{money(todayEarnings)} today</Text>
         </View>
-        <View style={[mapStyles.fab, shadow.card]}>
+        <View style={[st.fab, shadow.card, { backgroundColor: c.surface }]}>
           <Ionicons name="shield-checkmark" size={20} color={c.verified} />
         </View>
-      </View>
+      </Animated.View>
 
-      {/* Overdue fee — floats above the sheet */}
       {fee && !trip && !offer && (
-        <View style={{ position: 'absolute', left: s.md, right: s.md, bottom: 250, backgroundColor: c.ink, borderRadius: r.md, padding: s.md, flexDirection: 'row', alignItems: 'center', gap: s.sm }}>
-          <Ionicons name="card" size={18} color={c.gold} />
-          <Text style={{ color: c.onInk, flex: 1, fontSize: 13 }}>{money(fee.amount_inr)} setup fee overdue</Text>
-          <Pressable onPress={() => act(() => callFn('trip-lifecycle', { action: 'pay_setup_fee' }))}><Text style={{ color: c.gold, fontWeight: '700' }}>Pay</Text></Pressable>
-        </View>
+        <Animated.View entering={FadeIn} style={[st.feeBar, { bottom: 262 }]}>
+          <Ionicons name="card" size={17} color={c.brand} />
+          <Text style={{ color: c.ink, flex: 1, fontSize: 13, fontWeight: '600' }}>{money(fee.amount_inr)} setup fee overdue</Text>
+          <Touch onPress={() => act(() => callFn('trip-lifecycle', { action: 'pay_setup_fee' }))}><Text style={{ color: c.brand, fontWeight: '800' }}>Pay</Text></Touch>
+        </Animated.View>
       )}
 
-      {/* Bottom sheet */}
-      <View style={[mapStyles.sheet, { paddingBottom: s.lg }, shadow.hero]}>
-        <View style={mapStyles.grabber} />
+      {/* sheet */}
+      <Animated.View entering={SlideInDown.springify().damping(20).mass(0.9)} style={[st.sheet, { paddingBottom: insets.bottom ? s.sm : s.lg }, shadow.hero]}>
+        <View style={st.grabber} />
         {error && (
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: s.sm, backgroundColor: c.dangerSoft, borderRadius: r.md, padding: s.sm, marginBottom: s.md }}>
+          <Animated.View entering={FadeIn} style={st.errBar}>
             <Ionicons name="alert-circle" size={16} color={c.danger} />
-            <Text style={{ color: c.danger, flex: 1, fontWeight: '600', fontSize: 13 }}>{error}</Text>
-          </View>
+            <Text style={{ color: c.danger, flex: 1, fontWeight: '700', fontSize: 13 }}>{error}</Text>
+          </Animated.View>
         )}
 
-        {trip ? (
-          <TripSheet trip={trip} busy={busy} otpInput={otpInput} setOtpInput={setOtpInput} act={act} />
-        ) : offer ? (
-          <RequestSheet offer={offer} detail={detail} countdown={countdown} busy={busy} act={act} />
-        ) : online ? (
-          <View>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: s.sm }}>
-              <View style={mapStyles.livedot} />
-              <Text style={[t.h2, { color: c.ink }]}>You're online</Text>
-            </View>
-            <Text style={{ color: c.inkMuted, marginTop: 2 }}>Looking for trips near you…</Text>
-            <View style={{ flexDirection: 'row', gap: s.sm, marginTop: s.lg }}>
-              <Stat label="Today" value={money(todayEarnings)} />
-              <Stat label="Trips" value={String(todayTrips.length)} />
-              <Stat label="Rating" value={rating ? rating.toFixed(1) : '—'} />
-            </View>
-            <Button label="Go offline" icon="power" variant="ghost" onPress={toggleOnline} loading={busy} style={{ marginTop: s.md }} />
-          </View>
-        ) : (
-          <View style={{ alignItems: 'center' }}>
-            <Text style={{ color: c.inkMuted, marginBottom: s.md }}>You're offline</Text>
-            <Pressable onPress={toggleOnline} disabled={busy} style={({ pressed }) => [mapStyles.go, pressed && { transform: [{ scale: 0.96 }] }]}>
-              {busy ? <ActivityIndicator color="#4A2D00" /> : <Text style={{ fontWeight: '800', fontSize: 24, letterSpacing: 1, color: '#4A2D00' }}>GO</Text>}
-            </Pressable>
-            <View style={{ flexDirection: 'row', gap: s.sm, marginTop: s.xl, alignSelf: 'stretch' }}>
-              <Stat label="Today" value={money(todayEarnings)} />
-              <Stat label="Trips" value={String(todayTrips.length)} />
-              <Stat label="Rating" value={rating ? rating.toFixed(1) : '—'} />
-            </View>
-          </View>
-        )}
-      </View>
+        {trip ? <TripSheet trip={trip} busy={busy} otpInput={otpInput} setOtpInput={setOtpInput} act={act} />
+          : offer ? <RequestSheet offer={offer} detail={detail} countdown={countdown} busy={busy} act={act} />
+          : online ? <OnlineSheet earnings={todayEarnings} trips={todayTrips.length} rating={rating} busy={busy} onToggle={toggleOnline} />
+          : <OfflineSheet earnings={todayEarnings} trips={todayTrips.length} rating={rating} busy={busy} onGo={toggleOnline} />}
+      </Animated.View>
     </View>
+  );
+}
+
+/* ── Offline: the GO moment ─────────────────────────────────────────────── */
+function OfflineSheet({ earnings, trips, rating, busy, onGo }: { earnings: number; trips: number; rating: number | null; busy: boolean; onGo: () => void }) {
+  const pulse = useSharedValue(0);
+  useEffect(() => {
+    pulse.value = withRepeat(withTiming(1, { duration: 2000, easing: Easing.out(Easing.ease) }), -1, false);
+  }, [pulse]);
+  const halo = useAnimatedStyle(() => ({
+    transform: [{ scale: 1 + pulse.value * 0.55 }],
+    opacity: 0.45 * (1 - pulse.value),
+  }));
+  return (
+    <View style={{ alignItems: 'center' }}>
+      <Animated.Text entering={FadeIn} style={{ color: c.inkMuted, marginBottom: s.lg, fontWeight: '600' }}>You're offline</Animated.Text>
+      <View style={{ alignItems: 'center', justifyContent: 'center' }}>
+        <Animated.View style={[st.halo, halo]} pointerEvents="none" />
+        <Touch onPress={onGo} disabled={busy} scaleTo={0.92} style={[st.go, shadow.glow]}>
+          {busy ? <ActivityIndicator color={c.onInk} size="large" /> : <Text style={st.goText}>GO</Text>}
+        </Touch>
+      </View>
+      <Animated.View entering={FadeInUp.delay(120)} style={{ flexDirection: 'row', gap: s.sm, marginTop: s.xxl, alignSelf: 'stretch' }}>
+        <Stat label="Today" value={money(earnings)} />
+        <Stat label="Trips" value={String(trips)} />
+        <Stat label="Rating" value={rating ? rating.toFixed(1) : '—'} />
+      </Animated.View>
+    </View>
+  );
+}
+
+/* ── Online: searching ──────────────────────────────────────────────────── */
+function OnlineSheet({ earnings, trips, rating, busy, onToggle }: { earnings: number; trips: number; rating: number | null; busy: boolean; onToggle: () => void }) {
+  const beat = useSharedValue(0);
+  useEffect(() => {
+    beat.value = withRepeat(withSequence(withTiming(1, { duration: 700 }), withTiming(0, { duration: 700 })), -1, false);
+  }, [beat]);
+  const dot = useAnimatedStyle(() => ({ opacity: 0.35 + beat.value * 0.65, transform: [{ scale: 0.85 + beat.value * 0.35 }] }));
+  return (
+    <Animated.View entering={FadeIn}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: s.sm }}>
+        <Animated.View style={[st.livedot, dot]} />
+        <Text style={[t.h2, { color: c.ink }]}>You're online</Text>
+      </View>
+      <Text style={{ color: c.inkMuted, marginTop: 3, fontWeight: '500' }}>Looking for trips near you…</Text>
+      <View style={{ flexDirection: 'row', gap: s.sm, marginTop: s.lg }}>
+        <Stat label="Today" value={money(earnings)} />
+        <Stat label="Trips" value={String(trips)} />
+        <Stat label="Rating" value={rating ? rating.toFixed(1) : '—'} />
+      </View>
+      <Button label="Go offline" icon="power" variant="ghost" onPress={onToggle} loading={busy} style={{ marginTop: s.md }} />
+    </Animated.View>
   );
 }
 
 function Stat({ label, value }: { label: string; value: string }) {
   return (
-    <View style={{ flex: 1, backgroundColor: c.surfaceAlt, borderRadius: 12, paddingVertical: s.md, alignItems: 'center' }}>
-      <Text style={{ fontWeight: '800', fontSize: 15, color: c.ink }} numberOfLines={1}>{value}</Text>
-      <Text style={{ color: c.inkFaint, fontSize: 11, marginTop: 2 }}>{label}</Text>
+    <View style={st.stat}>
+      <Text style={{ fontWeight: '800', fontSize: 17, color: c.ink, letterSpacing: -0.4 }} numberOfLines={1}>{value}</Text>
+      <Text style={{ color: c.inkFaint, fontSize: 11, marginTop: 3, fontWeight: '600' }}>{label}</Text>
     </View>
   );
 }
 
+/* ── Incoming request ───────────────────────────────────────────────────── */
 function RequestSheet({ offer, detail, countdown, busy, act }: { offer: Offer; detail: OfferDetail | null; countdown: number; busy: boolean; act: (fn: () => Promise<unknown>) => Promise<void> }) {
+  const pct = Math.max(0, Math.min(1, countdown / 30));
+  const bar = useAnimatedStyle(() => ({ width: withTiming(`${pct * 100}%`, { duration: 480, easing: Easing.linear }) }));
   return (
-    <View>
-      <View style={{ height: 4, borderRadius: 2, backgroundColor: c.border, overflow: 'hidden', marginBottom: s.md }}>
-        <View style={{ height: 4, width: `${(countdown / 30) * 100}%`, backgroundColor: c.brand }} />
-      </View>
-      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-        <View>
+    <Animated.View entering={FadeInUp.springify().damping(20)}>
+      <View style={st.timerTrack}><Animated.View style={[st.timerFill, bar]} /></View>
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: s.md }}>
+        <View style={{ flex: 1 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: s.sm }}>
             <Text style={[t.h2, { color: c.ink }]}>New request</Text>
-            {detail && <Badge label={`${detail.categoryLabel}`} tone="warn" />}
+            {detail && <Badge label={detail.categoryLabel} tone="brand" />}
           </View>
-          {detail && <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 6, marginTop: 4 }}>
-            <Text style={{ fontWeight: '800', fontSize: 26, color: c.ink }}>{detail.estFare != null ? money(detail.estFare) : detail.rate}</Text>
-            <Text style={{ color: c.inkFaint, fontSize: 12 }}>{detail.estFare != null ? 'est. fare' : ''}</Text>
-          </View>}
+          {detail && (
+            <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 6, marginTop: 4 }}>
+              <Text style={{ fontWeight: '800', fontSize: 32, color: c.brand, letterSpacing: -1 }}>{detail.estFare != null ? money(detail.estFare) : detail.rate}</Text>
+              {detail.estFare != null && <Text style={{ color: c.inkFaint, fontSize: 12, fontWeight: '600' }}>est. fare</Text>}
+            </View>
+          )}
         </View>
-        <View style={{ width: 46, height: 46, borderRadius: 23, borderWidth: 3, borderColor: c.brand, alignItems: 'center', justifyContent: 'center' }}>
-          <Text style={{ fontWeight: '800', color: c.ink }}>{countdown}</Text>
-        </View>
+        <View style={st.ring}><Text style={{ fontWeight: '800', color: c.ink, fontSize: 17 }}>{countdown}</Text></View>
       </View>
 
       {detail && (
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: s.sm, marginTop: s.md, backgroundColor: c.surfaceAlt, borderRadius: 14, padding: s.md }}>
-          <Avatar name={detail.customerName} size={40} />
+        <View style={st.custCard}>
+          <Avatar name={detail.customerName} size={42} />
           <View style={{ flex: 1 }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
               <Text style={{ fontWeight: '700', fontSize: 15, color: c.ink }}>{detail.customerName}</Text>
               {detail.verified && <Ionicons name="shield-checkmark" size={15} color={c.verified} />}
             </View>
-            <Text style={{ color: c.inkMuted, fontSize: 12, marginTop: 1 }}>{detail.verified ? 'Aadhaar verified customer' : 'Customer'}</Text>
+            <Text style={{ color: c.inkFaint, fontSize: 12, marginTop: 2, fontWeight: '500' }}>{detail.verified ? 'Aadhaar verified customer' : 'Customer'}</Text>
           </View>
         </View>
       )}
 
       <View style={{ marginTop: s.md, gap: s.sm }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: s.sm }}>
-          <Ionicons name="ellipse" size={10} color={c.online} />
-          <Text style={{ color: c.ink, flex: 1 }} numberOfLines={1}>{detail?.pickupAddr ?? 'Pickup'}</Text>
-          <Text style={{ color: c.inkFaint, fontSize: 12 }}>{offer.distance_km ?? '?'} km away</Text>
+          <View style={st.dotGreen} />
+          <Text style={{ color: c.ink, flex: 1, fontWeight: '600' }} numberOfLines={1}>{detail?.pickupAddr ?? 'Pickup'}</Text>
+          <Text style={{ color: c.inkFaint, fontSize: 12, fontWeight: '600' }}>{offer.distance_km ?? '?'} km</Text>
         </View>
         {detail?.destAddr && (
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: s.sm }}>
-            <Ionicons name="location" size={12} color={c.danger} />
-            <Text style={{ color: c.ink, flex: 1 }} numberOfLines={1}>{detail.destAddr}</Text>
+            <Ionicons name="location" size={13} color={c.danger} />
+            <Text style={{ color: c.ink, flex: 1, fontWeight: '600' }} numberOfLines={1}>{detail.destAddr}</Text>
           </View>
         )}
       </View>
 
-      <View style={{ flexDirection: 'row', gap: s.md, marginTop: s.lg }}>
-        <Button label="Decline" variant="ghost" onPress={() => act(() => callFn('trip-lifecycle', { action: 'decline', trip_id: offer.trip_id }))} loading={busy} style={{ flex: 1 }} />
-        <Button label="Accept" variant="primary" icon="checkmark" onPress={() => act(() => callFn('trip-lifecycle', { action: 'accept', trip_id: offer.trip_id }))} loading={busy} style={{ flex: 1.5 }} />
-      </View>
-    </View>
+      <Button label="Accept" icon="checkmark" onPress={() => act(() => callFn('trip-lifecycle', { action: 'accept', trip_id: offer.trip_id }))} loading={busy} style={{ marginTop: s.lg }} />
+      <Touch onPress={() => act(() => callFn('trip-lifecycle', { action: 'decline', trip_id: offer.trip_id }))} style={{ paddingVertical: s.md }}>
+        <Text style={{ color: c.inkMuted, textAlign: 'center', fontWeight: '700' }}>Decline</Text>
+      </Touch>
+    </Animated.View>
   );
 }
 
+/* ── Active trip ────────────────────────────────────────────────────────── */
 function TripSheet({ trip, busy, otpInput, setOtpInput, act }: { trip: Trip; busy: boolean; otpInput: string; setOtpInput: (v: string) => void; act: (fn: () => Promise<unknown>) => Promise<void> }) {
   const m = cat(trip.category_slug);
   const steps = ['accepted', 'driver_arrived', 'in_progress', 'completed'];
   const activeIdx = Math.max(0, steps.indexOf(trip.status === 'paid' ? 'completed' : trip.status));
   return (
-    <View>
+    <Animated.View entering={FadeIn}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: s.md }}>
-        <View style={{ width: 44, height: 44, borderRadius: 13, backgroundColor: c.brandSoft, alignItems: 'center', justifyContent: 'center' }}>
-          <MaterialCommunityIcons name={m.icon} size={23} color={c.brandDeep} />
-        </View>
+        <View style={st.catIcon}><MaterialCommunityIcons name={m.icon} size={23} color={c.brand} /></View>
         <View style={{ flex: 1 }}>
           <Text style={[t.h2, { color: c.ink }]}>{m.label} trip</Text>
-          <Text style={{ color: c.inkMuted, fontSize: 13 }}>{trip.trip_type === 'per_km' ? 'Per-km' : `${trip.days} day`} · pay {trip.payment_mode === 'cash' ? 'cash' : 'in-app'}</Text>
+          <Text style={{ color: c.inkMuted, fontSize: 13, fontWeight: '500' }}>{trip.trip_type === 'per_km' ? 'Per-km' : `${trip.days} day`} · pay {trip.payment_mode === 'cash' ? 'cash' : 'in-app'}</Text>
         </View>
         <Badge label={trip.status.replaceAll('_', ' ')} tone="brand" />
       </View>
+
       <View style={{ flexDirection: 'row', gap: 6, marginTop: s.md }}>
-        {steps.map((_, i) => <View key={i} style={{ flex: 1, height: 5, borderRadius: 3, backgroundColor: i <= activeIdx ? c.online : c.border }} />)}
+        {steps.map((_, i) => (
+          <Animated.View key={i} entering={FadeIn.delay(i * 60)} style={{ flex: 1, height: 5, borderRadius: 3, backgroundColor: i <= activeIdx ? c.online : c.surfaceHi }} />
+        ))}
       </View>
 
       <View style={{ marginTop: s.md, gap: s.sm }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: s.sm }}>
-          <Ionicons name="ellipse" size={10} color={c.online} />
-          <Text style={{ color: c.ink, flex: 1 }} numberOfLines={1}>{trip.pickup_address ?? 'Pickup location'}</Text>
+          <View style={st.dotGreen} />
+          <Text style={{ color: c.ink, flex: 1, fontWeight: '600' }} numberOfLines={1}>{trip.pickup_address ?? 'Pickup location'}</Text>
         </View>
         {trip.destination_address && (
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: s.sm }}>
-            <Ionicons name="location" size={12} color={c.danger} />
-            <Text style={{ color: c.ink, flex: 1 }} numberOfLines={1}>{trip.destination_address}</Text>
+            <Ionicons name="location" size={13} color={c.danger} />
+            <Text style={{ color: c.ink, flex: 1, fontWeight: '600' }} numberOfLines={1}>{trip.destination_address}</Text>
           </View>
         )}
       </View>
@@ -368,36 +400,62 @@ function TripSheet({ trip, busy, otpInput, setOtpInput, act }: { trip: Trip; bus
         {trip.status === 'accepted' && <Button label="I've arrived at pickup" icon="checkmark-done" onPress={() => act(() => callFn('trip-lifecycle', { action: 'arrive', trip_id: trip.id }))} loading={busy} />}
         {trip.status === 'driver_arrived' && (
           <View style={{ gap: s.md }}>
-            <Text style={{ color: c.inkMuted, fontSize: 13 }}>Ask the customer for their 4-digit start code:</Text>
-            <TextInput value={otpInput} onChangeText={setOtpInput} keyboardType="number-pad" maxLength={4} placeholder="––––" placeholderTextColor={c.inkFaint} style={{ borderWidth: 1.5, borderColor: c.border, borderRadius: r.md, textAlign: 'center', fontSize: 26, letterSpacing: 14, paddingVertical: s.md, color: c.ink, fontWeight: '800' }} />
+            <Text style={{ color: c.inkMuted, fontSize: 13, fontWeight: '500' }}>Ask the customer for their 4-digit start code:</Text>
+            <TextInput value={otpInput} onChangeText={setOtpInput} keyboardType="number-pad" maxLength={4} placeholder="––––" placeholderTextColor={c.inkFaint} style={st.otp} />
             <Button label="Start trip" icon="play" variant="success" disabled={otpInput.length !== 4} loading={busy} onPress={() => act(async () => { await callFn('trip-lifecycle', { action: 'start', trip_id: trip.id, otp: otpInput }); setOtpInput(''); })} />
           </View>
         )}
         {trip.status === 'in_progress' && <Button label="End trip" icon="stop" variant="danger" loading={busy} onPress={() => Alert.alert('End trip?', 'The fare is calculated from the distance travelled.', [{ text: 'Cancel', style: 'cancel' }, { text: 'End trip', style: 'destructive', onPress: () => act(() => callFn('trip-lifecycle', { action: 'end', trip_id: trip.id })) }])} />}
         {trip.status === 'completed' && (
           <View style={{ gap: s.md }}>
-            <View style={{ backgroundColor: c.surfaceAlt, borderRadius: r.md, padding: s.md, alignItems: 'center' }}>
-              <Text style={{ color: c.inkMuted, fontSize: 13 }}>Fare {trip.distance_km ? `· ${trip.distance_km} km` : ''}</Text>
-              <Text style={{ color: c.ink, fontSize: 30, fontWeight: '800', marginTop: 2 }}>{money(trip.fare_total)}</Text>
-            </View>
+            <Animated.View entering={FadeInUp.springify()} style={st.fareBox}>
+              <Text style={{ color: c.inkMuted, fontSize: 13, fontWeight: '600' }}>Fare {trip.distance_km ? `· ${trip.distance_km} km` : ''}</Text>
+              <Text style={{ color: c.brand, fontSize: 36, fontWeight: '800', marginTop: 2, letterSpacing: -1 }}>{money(trip.fare_total)}</Text>
+            </Animated.View>
             {trip.payment_mode === 'cash' && trip.payment_status === 'pending' && <Button label="Cash collected" icon="cash" variant="success" loading={busy} onPress={() => act(() => callFn('trip-lifecycle', { action: 'cash_collected', trip_id: trip.id }))} />}
-            {trip.payment_status === 'collected_claimed' && <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: s.sm }}><Ionicons name="time-outline" size={16} color={c.inkMuted} /><Text style={{ color: c.inkMuted }}>Waiting for customer to confirm…</Text></View>}
-            {trip.payment_mode === 'in_app' && trip.payment_status === 'pending' && <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: s.sm }}><Ionicons name="time-outline" size={16} color={c.inkMuted} /><Text style={{ color: c.inkMuted }}>Waiting for in-app payment…</Text></View>}
+            {trip.payment_status === 'collected_claimed' && <Waiting text="Waiting for customer to confirm…" />}
+            {trip.payment_mode === 'in_app' && trip.payment_status === 'pending' && <Waiting text="Waiting for in-app payment…" />}
           </View>
         )}
         {trip.status === 'paid' && <Button label="Close trip" icon="checkmark-circle" loading={busy} onPress={() => act(() => callFn('trip-lifecycle', { action: 'close', trip_id: trip.id }))} />}
-        {['accepted', 'driver_arrived'].includes(trip.status) && <Pressable onPress={() => act(() => callFn('trip-lifecycle', { action: 'cancel', trip_id: trip.id }))} style={{ paddingTop: s.md }}><Text style={{ color: c.danger, textAlign: 'center', fontWeight: '600' }}>Cancel trip</Text></Pressable>}
+        {['accepted', 'driver_arrived'].includes(trip.status) && (
+          <Touch onPress={() => act(() => callFn('trip-lifecycle', { action: 'cancel', trip_id: trip.id }))} style={{ paddingTop: s.md }}>
+            <Text style={{ color: c.danger, textAlign: 'center', fontWeight: '700' }}>Cancel trip</Text>
+          </Touch>
+        )}
       </View>
+    </Animated.View>
+  );
+}
+
+function Waiting({ text }: { text: string }) {
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: s.sm }}>
+      <ActivityIndicator size="small" color={c.inkMuted} />
+      <Text style={{ color: c.inkMuted, fontWeight: '600' }}>{text}</Text>
     </View>
   );
 }
 
-const mapStyles = StyleSheet.create({
-  sheet: { position: 'absolute', left: 0, right: 0, bottom: 0, backgroundColor: c.surface, borderTopLeftRadius: 26, borderTopRightRadius: 26, paddingHorizontal: s.lg, paddingTop: s.sm },
-  grabber: { width: 38, height: 4, borderRadius: 2, backgroundColor: c.border, alignSelf: 'center', marginBottom: s.md },
-  fab: { width: 44, height: 44, borderRadius: 22, backgroundColor: c.surface, alignItems: 'center', justifyContent: 'center' },
-  pill: { flexDirection: 'row', alignItems: 'center', gap: 7, backgroundColor: c.surface, borderRadius: 22, paddingHorizontal: 14, paddingVertical: 9 },
-  go: { width: 108, height: 108, borderRadius: 54, backgroundColor: c.brand, alignItems: 'center', justifyContent: 'center' },
-  livedot: { width: 10, height: 10, borderRadius: 5, backgroundColor: c.online },
-  mePin: { width: 34, height: 34, borderRadius: 17, backgroundColor: c.ink, alignItems: 'center', justifyContent: 'center', borderWidth: 3, borderColor: c.onInk },
+const st = StyleSheet.create({
+  sheet: { position: 'absolute', left: 0, right: 0, bottom: 0, backgroundColor: c.surface, borderTopLeftRadius: 30, borderTopRightRadius: 30, paddingHorizontal: s.lg, paddingTop: s.sm, borderTopWidth: 1, borderColor: c.border },
+  grabber: { width: 40, height: 4, borderRadius: 2, backgroundColor: c.borderStrong, alignSelf: 'center', marginBottom: s.md },
+  fab: { width: 46, height: 46, borderRadius: 23, backgroundColor: c.surface, alignItems: 'center', justifyContent: 'center', overflow: 'hidden', borderWidth: 1, borderColor: c.border },
+  pill: { flexDirection: 'row', alignItems: 'center', gap: 7, backgroundColor: c.surface, borderRadius: 23, paddingHorizontal: 15, paddingVertical: 11, borderWidth: 1, borderColor: c.border },
+  go: { width: 118, height: 118, borderRadius: 59, backgroundColor: c.brand, alignItems: 'center', justifyContent: 'center' },
+  goText: { fontWeight: '800', fontSize: 30, letterSpacing: 1.5, color: c.onInk },
+  halo: { position: 'absolute', width: 118, height: 118, borderRadius: 59, backgroundColor: c.brand },
+  livedot: { width: 11, height: 11, borderRadius: 6, backgroundColor: c.online },
+  mePin: { width: 36, height: 36, borderRadius: 18, backgroundColor: c.brand, alignItems: 'center', justifyContent: 'center', borderWidth: 3, borderColor: c.surface },
+  stat: { flex: 1, backgroundColor: c.surfaceAlt, borderRadius: 14, paddingVertical: s.md, alignItems: 'center' },
+  errBar: { flexDirection: 'row', alignItems: 'center', gap: s.sm, backgroundColor: c.dangerSoft, borderRadius: r.md, padding: s.sm, marginBottom: s.md },
+  feeBar: { position: 'absolute', left: s.md, right: s.md, backgroundColor: c.surfaceAlt, borderRadius: r.md, padding: s.md, flexDirection: 'row', alignItems: 'center', gap: s.sm, borderWidth: 1, borderColor: c.border },
+  timerTrack: { height: 4, borderRadius: 2, backgroundColor: c.surfaceHi, overflow: 'hidden' },
+  timerFill: { height: 4, backgroundColor: c.brand, borderRadius: 2 },
+  ring: { width: 50, height: 50, borderRadius: 25, borderWidth: 3, borderColor: c.brand, alignItems: 'center', justifyContent: 'center' },
+  custCard: { flexDirection: 'row', alignItems: 'center', gap: s.sm, marginTop: s.md, backgroundColor: c.surfaceAlt, borderRadius: 16, padding: s.md },
+  catIcon: { width: 46, height: 46, borderRadius: 14, backgroundColor: c.brandSoft, alignItems: 'center', justifyContent: 'center' },
+  dotGreen: { width: 10, height: 10, borderRadius: 5, backgroundColor: c.online },
+  otp: { borderWidth: 1.5, borderColor: c.border, borderRadius: r.md, textAlign: 'center', fontSize: 28, letterSpacing: 14, paddingVertical: s.md, color: c.ink, fontWeight: '800', backgroundColor: c.surfaceAlt },
+  fareBox: { backgroundColor: c.surfaceAlt, borderRadius: r.md, padding: s.lg, alignItems: 'center' },
 });

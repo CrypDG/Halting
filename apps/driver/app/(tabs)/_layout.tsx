@@ -40,7 +40,7 @@ export default function TabsLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: c.ink,
+        tabBarActiveTintColor: c.brand,
         tabBarInactiveTintColor: c.inkFaint,
         tabBarStyle: {
           backgroundColor: c.surface,
@@ -49,7 +49,7 @@ export default function TabsLayout() {
           paddingTop: 6,
           paddingBottom: insets.bottom || 8,
         },
-        tabBarLabelStyle: { fontSize: 11, fontWeight: '600' },
+        tabBarLabelStyle: { fontSize: 11, fontWeight: '700' },
       }}
     >
       <Tabs.Screen name="index" options={{ title: 'Home', tabBarIcon: ({ color, size }) => <Ionicons name="home" size={size} color={color} /> }} />
