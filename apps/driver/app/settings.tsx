@@ -3,16 +3,21 @@ import { Alert, ScrollView, Text, View } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { c, s, type as t } from '@/lib/theme';
 import { authenticate, biometricAvailable, biometricLabel, isBiometricEnabled, setBiometricEnabled } from '@/lib/biometric';
-import { Card, Header, MenuRow } from '@/lib/components';
+import { Card, Header, MenuRow, SelectSheet } from '@/lib/components';
 
 const PREFS = { push: 'acting.notif.push', sms: 'acting.notif.sms', promo: 'acting.notif.promo' };
-const LANGS = ['English', 'தமிழ் (Tamil)', 'हिन्दी (Hindi)'];
+const LANGS = [
+  { key: 'en', label: 'English', sublabel: 'Default' },
+  { key: 'ta', label: 'தமிழ்', sublabel: 'Tamil — translation coming soon' },
+  { key: 'hi', label: 'हिन्दी', sublabel: 'Hindi — translation coming soon' },
+];
 
 export default function Settings() {
   const [push, setPush] = useState(true);
   const [sms, setSms] = useState(true);
   const [promo, setPromo] = useState(false);
-  const [lang, setLang] = useState('English');
+  const [lang, setLang] = useState('en');
+  const [langOpen, setLangOpen] = useState(false);
   const [bioAvail, setBioAvail] = useState(false);
   const [bioOn, setBioOn] = useState(false);
   const [bioLabel, setBioLabel] = useState('Fingerprint');
@@ -21,7 +26,7 @@ export default function Settings() {
     setPush((await AsyncStorage.getItem(PREFS.push)) !== '0');
     setSms((await AsyncStorage.getItem(PREFS.sms)) !== '0');
     setPromo((await AsyncStorage.getItem(PREFS.promo)) === '1');
-    setLang((await AsyncStorage.getItem('acting.lang')) ?? 'English');
+    setLang((await AsyncStorage.getItem('acting.lang')) ?? 'en');
     setBioAvail(await biometricAvailable());
     setBioOn(await isBiometricEnabled());
     setBioLabel(await biometricLabel());
@@ -35,11 +40,7 @@ export default function Settings() {
     else { await setBiometricEnabled(false); setBioOn(false); }
   }
 
-  function chooseLang() {
-    Alert.alert('Language', 'Tamil and Hindi are rolling out soon.', LANGS.map((l) => ({
-      text: l, onPress: () => { setLang(l); AsyncStorage.setItem('acting.lang', l); },
-    })).concat([{ text: 'Cancel', onPress: () => {} } as any]));
-  }
+  const langLabel = LANGS.find((l) => l.key === lang)?.label ?? 'English';
 
   return (
     <View style={{ flex: 1, backgroundColor: c.bg }}>
@@ -65,12 +66,21 @@ export default function Settings() {
         <View>
           <Text style={[t.label, { color: c.inkMuted, marginBottom: s.sm, paddingHorizontal: s.xs }]}>App</Text>
           <Card style={{ padding: 0 }}>
-            <MenuRow icon="language-outline" tint={c.brand} title="Language" subtitle={lang} onPress={chooseLang} />
+            <MenuRow icon="language-outline" tint={c.brand} title="Language" subtitle={langLabel} onPress={() => setLangOpen(true)} />
             <MenuRow icon="document-text-outline" tint={c.steel} title="Terms & privacy" onPress={() => Alert.alert('Legal', 'Terms of Service and Privacy Policy will open in your browser.')} />
             <MenuRow icon="information-circle-outline" tint={c.steel} title="About Acting" subtitle="Version 0.1.0" onPress={() => Alert.alert('Acting Driver', 'Version 0.1.0\nBuilt in Tamil Nadu.')} last />
           </Card>
         </View>
       </ScrollView>
+
+      <SelectSheet
+        visible={langOpen}
+        title="Language"
+        options={LANGS.map((l) => ({ key: l.key, label: l.label, sublabel: l.sublabel, icon: 'language-outline' as const }))}
+        value={lang}
+        onSelect={(key) => { setLang(key); AsyncStorage.setItem('acting.lang', key); }}
+        onClose={() => setLangOpen(false)}
+      />
     </View>
   );
 }

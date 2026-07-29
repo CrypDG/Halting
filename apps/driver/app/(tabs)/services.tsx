@@ -13,7 +13,8 @@ export default function Services() {
       <View>
         <Text style={[t.label, { color: c.inkMuted, marginBottom: s.sm, paddingHorizontal: s.xs }]}>Compliance</Text>
         <Card style={{ padding: 0 }}>
-          <MenuRow icon="document-text-outline" tint={c.brand} title="Documents" subtitle="Licence, police certificate, insurance" onPress={() => router.push('/documents')} last />
+          <MenuRow icon="car-sport-outline" tint={c.brand} title="Vehicles & rates" subtitle="What you act as, and your pricing" onPress={() => router.push('/vehicles')} />
+          <MenuRow icon="document-text-outline" tint={c.gold} title="Documents" subtitle="Licence, police certificate, insurance" onPress={() => router.push('/documents')} last />
         </Card>
       </View>
 

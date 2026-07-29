@@ -1,14 +1,14 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { ActivityIndicator, Image, Pressable, StyleSheet, Switch, Text, TextInput, View, type PressableProps, type TextInputProps, type ViewStyle } from 'react-native';
-import Animated, { useAnimatedStyle, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
+import { ActivityIndicator, Image, Modal, Pressable, StyleSheet, Switch, Text, TextInput, View, type PressableProps, type StyleProp, type TextInputProps, type ViewStyle } from 'react-native';
+import Animated, { FadeIn, SlideInDown, useAnimatedStyle, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { c, motion, r, s, shadow, type as t } from './theme';
 
 const APressable = Animated.createAnimatedComponent(Pressable);
 
 /** Pressable that springs down on touch — the base of every tappable surface. */
-export function Touch({ children, style, scaleTo = 0.97, ...props }: PressableProps & { children: React.ReactNode; style?: ViewStyle | ViewStyle[]; scaleTo?: number }) {
+export function Touch({ children, style, scaleTo = 0.97, ...props }: PressableProps & { children: React.ReactNode; style?: StyleProp<ViewStyle>; scaleTo?: number }) {
   const p = useSharedValue(0);
   const anim = useAnimatedStyle(() => ({
     transform: [{ scale: withSpring(1 - p.value * (1 - scaleTo), motion.spring) }],
@@ -171,7 +171,71 @@ export function MenuRow({ icon, tint = c.ink, title, subtitle, onPress, right, t
   return <Touch onPress={onPress} scaleTo={0.985}>{body}</Touch>;
 }
 
+export type SelectOption = {
+  key: string;
+  label: string;
+  sublabel?: string;
+  icon?: keyof typeof Ionicons.glyphMap;
+  disabled?: boolean;
+};
+
+/** Dark bottom-sheet picker — replaces the white system Alert for selections. */
+export function SelectSheet({ visible, title, options, value, onSelect, onClose }: {
+  visible: boolean;
+  title: string;
+  options: SelectOption[];
+  value?: string | null;
+  onSelect: (key: string) => void;
+  onClose: () => void;
+}) {
+  const insets = useSafeAreaInsets();
+  return (
+    <Modal visible={visible} transparent animationType="none" statusBarTranslucent onRequestClose={onClose}>
+      <View style={{ flex: 1, justifyContent: 'flex-end' }}>
+        <Animated.View entering={FadeIn.duration(180)} style={StyleSheet.absoluteFill}>
+          <Pressable style={[StyleSheet.absoluteFill, { backgroundColor: c.scrim }]} onPress={onClose} />
+        </Animated.View>
+        <Animated.View
+          entering={SlideInDown.springify().damping(21).mass(0.9)}
+          style={[styles.selectSheet, { paddingBottom: (insets.bottom || s.md) + s.sm }]}
+        >
+          <View style={styles.selectGrabber} />
+          <Text style={[t.h2, { color: c.ink, marginBottom: s.sm, paddingHorizontal: s.sm }]}>{title}</Text>
+          {options.map((o, i) => {
+            const active = o.key === value;
+            return (
+              <Touch
+                key={o.key}
+                scaleTo={0.985}
+                disabled={o.disabled}
+                onPress={() => { onSelect(o.key); onClose(); }}
+                style={[styles.selectRow, active && { backgroundColor: c.brandSoft }, o.disabled && { opacity: 0.45 }]}
+              >
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: s.md }}>
+                  {o.icon && (
+                    <View style={[styles.rowIcon, { backgroundColor: (active ? c.brand : c.inkMuted) + '22' }]}>
+                      <Ionicons name={o.icon} size={19} color={active ? c.brand : c.inkMuted} />
+                    </View>
+                  )}
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ color: c.ink, fontSize: 16, fontWeight: active ? '800' : '600' }}>{o.label}</Text>
+                    {o.sublabel ? <Text style={{ color: c.inkFaint, fontSize: 12, marginTop: 2 }}>{o.sublabel}</Text> : null}
+                  </View>
+                  <Ionicons name={active ? 'radio-button-on' : 'radio-button-off'} size={21} color={active ? c.brand : c.inkFaint} />
+                </View>
+              </Touch>
+            );
+          })}
+        </Animated.View>
+      </View>
+    </Modal>
+  );
+}
+
 const styles = StyleSheet.create({
+  selectSheet: { backgroundColor: c.surface, borderTopLeftRadius: 28, borderTopRightRadius: 28, paddingHorizontal: s.md, paddingTop: s.sm, borderTopWidth: 1, borderColor: c.border },
+  selectGrabber: { width: 40, height: 4, borderRadius: 2, backgroundColor: c.borderStrong, alignSelf: 'center', marginBottom: s.md },
+  selectRow: { borderRadius: r.md, paddingVertical: s.md, paddingHorizontal: s.sm, marginBottom: 2 },
   card: { backgroundColor: c.surface, borderRadius: r.lg, padding: s.lg, borderWidth: 1, borderColor: c.border },
   sectionRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: s.md },
   sectionTitle: { ...t.h3, color: c.ink },

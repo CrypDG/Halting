@@ -41,6 +41,7 @@ export default function Home() {
   const [name, setName] = useState('Driver');
   const [photo, setPhoto] = useState<string | null>(null);
   const [rating, setRating] = useState<number | null>(null);
+  const [myCats, setMyCats] = useState<string[]>([]);
   const [presence, setPresence] = useState<'offline' | 'online' | 'busy'>('offline');
   const [offer, setOffer] = useState<Offer | null>(null);
   const [detail, setDetail] = useState<OfferDetail | null>(null);
@@ -54,14 +55,16 @@ export default function Home() {
   const pingRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const refresh = useCallback(async (userId: string) => {
-    const [{ data: dp }, { data: pr }, { data: sf }, { data: activeTrip }, { data: closed }] = await Promise.all([
+    const [{ data: dp }, { data: pr }, { data: sf }, { data: activeTrip }, { data: closed }, { data: dc }] = await Promise.all([
       supabase.from('driver_profiles').select('trips_completed, rating_avg').eq('driver_id', userId).maybeSingle(),
       supabase.from('driver_presence').select('status').eq('driver_id', userId).maybeSingle(),
       supabase.from('setup_fees').select('amount_inr, status, due_at').eq('driver_id', userId).maybeSingle(),
       supabase.from('trips').select('*').eq('driver_id', userId).in('status', ['accepted', 'driver_arrived', 'in_progress', 'completed', 'paid']).order('requested_at', { ascending: false }).limit(1).maybeSingle(),
       supabase.from('trips').select('id, fare_total, closed_at, category_slug').eq('driver_id', userId).eq('status', 'closed').order('closed_at', { ascending: false }).limit(30),
+      supabase.from('driver_categories').select('category_slug, active').eq('driver_id', userId),
     ]);
     if (dp) setRating(dp.rating_avg);
+    setMyCats(((dc as { category_slug: string; active: boolean }[]) ?? []).filter((x) => x.active).map((x) => x.category_slug));
     setPresence(((pr?.status as typeof presence) ?? 'offline'));
     setFee(sf?.status === 'pending' && new Date(sf.due_at) < new Date() ? (sf as Fee) : null);
     setTrip(activeTrip as Trip | null);
@@ -235,15 +238,39 @@ export default function Home() {
 
         {trip ? <TripSheet trip={trip} busy={busy} otpInput={otpInput} setOtpInput={setOtpInput} act={act} />
           : offer ? <RequestSheet offer={offer} detail={detail} countdown={countdown} busy={busy} act={act} />
-          : online ? <OnlineSheet earnings={todayEarnings} trips={todayTrips.length} rating={rating} busy={busy} onToggle={toggleOnline} />
-          : <OfflineSheet earnings={todayEarnings} trips={todayTrips.length} rating={rating} busy={busy} onGo={toggleOnline} />}
+          : online ? <OnlineSheet earnings={todayEarnings} trips={todayTrips.length} rating={rating} busy={busy} onToggle={toggleOnline} cats={myCats} />
+          : <OfflineSheet earnings={todayEarnings} trips={todayTrips.length} rating={rating} busy={busy} onGo={toggleOnline} cats={myCats} />}
       </Animated.View>
     </View>
   );
 }
 
+/** Chips showing which vehicles the driver acts as; tap to manage. */
+function CatChips({ cats }: { cats: string[] }) {
+  return (
+    <Touch onPress={() => router.push('/vehicles')} scaleTo={0.98} style={{ alignSelf: 'stretch' }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: s.sm, backgroundColor: c.surfaceAlt, borderRadius: 14, padding: s.md }}>
+        <Text style={{ color: c.inkFaint, fontSize: 11, fontWeight: '800', letterSpacing: 0.5 }}>ACTING AS</Text>
+        <View style={{ flexDirection: 'row', gap: 6, flex: 1, flexWrap: 'wrap' }}>
+          {cats.length === 0 ? (
+            <Text style={{ color: c.warn, fontWeight: '700', fontSize: 13 }}>No vehicles set — tap to add</Text>
+          ) : (
+            cats.map((slug) => (
+              <View key={slug} style={{ flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: c.brandSoft, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5 }}>
+                <MaterialCommunityIcons name={cat(slug).icon} size={14} color={c.brand} />
+                <Text style={{ color: c.brand, fontWeight: '800', fontSize: 12 }}>{cat(slug).label}</Text>
+              </View>
+            ))
+          )}
+        </View>
+        <Ionicons name="chevron-forward" size={16} color={c.inkFaint} />
+      </View>
+    </Touch>
+  );
+}
+
 /* ── Offline: the GO moment ─────────────────────────────────────────────── */
-function OfflineSheet({ earnings, trips, rating, busy, onGo }: { earnings: number; trips: number; rating: number | null; busy: boolean; onGo: () => void }) {
+function OfflineSheet({ earnings, trips, rating, busy, onGo, cats }: { earnings: number; trips: number; rating: number | null; busy: boolean; onGo: () => void; cats: string[] }) {
   const pulse = useSharedValue(0);
   useEffect(() => {
     pulse.value = withRepeat(withTiming(1, { duration: 2000, easing: Easing.out(Easing.ease) }), -1, false);
@@ -261,17 +288,20 @@ function OfflineSheet({ earnings, trips, rating, busy, onGo }: { earnings: numbe
           {busy ? <ActivityIndicator color={c.onInk} size="large" /> : <Text style={st.goText}>GO</Text>}
         </Touch>
       </View>
-      <Animated.View entering={FadeInUp.delay(120)} style={{ flexDirection: 'row', gap: s.sm, marginTop: s.xxl, alignSelf: 'stretch' }}>
-        <Stat label="Today" value={money(earnings)} />
-        <Stat label="Trips" value={String(trips)} />
-        <Stat label="Rating" value={rating ? rating.toFixed(1) : '—'} />
+      <Animated.View entering={FadeInUp.delay(120)} style={{ gap: s.sm, marginTop: s.xxl, alignSelf: 'stretch' }}>
+        <CatChips cats={cats} />
+        <View style={{ flexDirection: 'row', gap: s.sm }}>
+          <Stat label="Today" value={money(earnings)} />
+          <Stat label="Trips" value={String(trips)} />
+          <Stat label="Rating" value={rating ? rating.toFixed(1) : '—'} />
+        </View>
       </Animated.View>
     </View>
   );
 }
 
 /* ── Online: searching ──────────────────────────────────────────────────── */
-function OnlineSheet({ earnings, trips, rating, busy, onToggle }: { earnings: number; trips: number; rating: number | null; busy: boolean; onToggle: () => void }) {
+function OnlineSheet({ earnings, trips, rating, busy, onToggle, cats }: { earnings: number; trips: number; rating: number | null; busy: boolean; onToggle: () => void; cats: string[] }) {
   const beat = useSharedValue(0);
   useEffect(() => {
     beat.value = withRepeat(withSequence(withTiming(1, { duration: 700 }), withTiming(0, { duration: 700 })), -1, false);
@@ -284,10 +314,13 @@ function OnlineSheet({ earnings, trips, rating, busy, onToggle }: { earnings: nu
         <Text style={[t.h2, { color: c.ink }]}>You're online</Text>
       </View>
       <Text style={{ color: c.inkMuted, marginTop: 3, fontWeight: '500' }}>Looking for trips near you…</Text>
-      <View style={{ flexDirection: 'row', gap: s.sm, marginTop: s.lg }}>
-        <Stat label="Today" value={money(earnings)} />
-        <Stat label="Trips" value={String(trips)} />
-        <Stat label="Rating" value={rating ? rating.toFixed(1) : '—'} />
+      <View style={{ marginTop: s.lg, gap: s.sm }}>
+        <CatChips cats={cats} />
+        <View style={{ flexDirection: 'row', gap: s.sm }}>
+          <Stat label="Today" value={money(earnings)} />
+          <Stat label="Trips" value={String(trips)} />
+          <Stat label="Rating" value={rating ? rating.toFixed(1) : '—'} />
+        </View>
       </View>
       <Button label="Go offline" icon="power" variant="ghost" onPress={onToggle} loading={busy} style={{ marginTop: s.md }} />
     </Animated.View>

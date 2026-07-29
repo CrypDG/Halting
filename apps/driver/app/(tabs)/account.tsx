@@ -73,6 +73,7 @@ export default function Account() {
         <Text style={[t.label, { color: c.inkMuted, marginBottom: s.sm, paddingHorizontal: s.xs }]}>Account</Text>
         <Card style={{ padding: 0 }}>
           <MenuRow icon="person-outline" tint={c.brand} title="Personal info" subtitle="Name, phone, identity" onPress={() => router.push('/personal-info')} />
+          <MenuRow icon="car-sport-outline" tint={c.brand} title="Vehicles & rates" subtitle="What you act as, and your pricing" onPress={() => router.push('/vehicles')} />
           <MenuRow icon="document-text-outline" tint={c.gold} title="Documents" subtitle="Licence, police, insurance" onPress={() => router.push('/documents')} />
           <MenuRow icon="wallet-outline" tint={c.online} title="Payouts & bank" subtitle="Where fares are settled" onPress={() => router.push('/payout')} last />
         </Card>
