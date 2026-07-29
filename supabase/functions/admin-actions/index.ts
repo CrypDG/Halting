@@ -92,6 +92,37 @@ Deno.serve(async (req: Request) => {
         if (error) throw new HttpError(500, error.message);
         return json({ fee: data });
       }
+
+      // ── Document review (PRD §3.2/§3.4) ──────────────────────────────
+      case 'verify_document':
+      case 'reject_document': {
+        const { document_id } = body;
+        if (!document_id) throw new HttpError(400, 'document_id required');
+        if (action === 'reject_document' && !reason) throw new HttpError(400, 'reason required for rejection');
+        const { data, error } = await supa.from('user_documents')
+          .update({
+            status: action === 'verify_document' ? 'verified' : 'rejected',
+            rejection_reason: action === 'reject_document' ? reason : null,
+            reviewed_by: user.id,
+            reviewed_at: now,
+          })
+          .eq('id', document_id).select().single();
+        if (error) throw new HttpError(500, error.message);
+        return json({ document: data });
+      }
+
+      // Signed URL so a verifier can view a private document image.
+      case 'document_url': {
+        const { file_path } = body;
+        if (!file_path) throw new HttpError(400, 'file_path required');
+        const { data, error } = await supa.storage.from('documents').createSignedUrl(file_path, 300);
+        if (error) throw new HttpError(500, error.message);
+        // Self-hosted storage signs with the INTERNAL gateway host (http://kong:8000),
+        // which a browser can't reach — rewrite to the public origin.
+        const publicOrigin = Deno.env.get('SUPABASE_PUBLIC_URL') ?? 'https://actingapi.loankard.com';
+        const url = data.signedUrl.replace(/^https?:\/\/[^/]+/, publicOrigin.replace(/\/$/, ''));
+        return json({ url });
+      }
       default:
         throw new HttpError(400, `Unknown action: ${action}`);
     }
