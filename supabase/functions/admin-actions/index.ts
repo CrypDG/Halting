@@ -111,6 +111,30 @@ Deno.serve(async (req: Request) => {
         return json({ document: data });
       }
 
+      // ── Identity holds (PRD §3.4) ────────────────────────────────────
+      case 'clear_identity_hold': {
+        if (!driver_id) throw new HttpError(400, 'driver_id required');
+        const { data, error } = await supa.from('driver_profiles')
+          .update({ identity_hold: false, identity_hold_reason: null })
+          .eq('driver_id', driver_id).select('driver_id, identity_hold').single();
+        if (error) throw new HttpError(500, error.message);
+        await supa.from('verification_events').insert({
+          driver_id, kind: 'device_change', result: 'passed',
+          notes: `Identity hold cleared by admin${reason ? `: ${reason}` : ''}`,
+          reviewed_by: user.id, reviewed_at: now,
+        });
+        return json({ driver: data });
+      }
+      case 'set_identity_hold': {
+        if (!driver_id) throw new HttpError(400, 'driver_id required');
+        const { data, error } = await supa.from('driver_profiles')
+          .update({ identity_hold: true, identity_hold_reason: reason ?? 'Identity review required.' })
+          .eq('driver_id', driver_id).select('driver_id, identity_hold').single();
+        if (error) throw new HttpError(500, error.message);
+        await supa.from('driver_presence').update({ status: 'offline' }).eq('driver_id', driver_id);
+        return json({ driver: data });
+      }
+
       // Signed URL so a verifier can view a private document image.
       case 'document_url': {
         const { file_path } = body;

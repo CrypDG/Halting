@@ -11,6 +11,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { calculateFare, haversineKm } from '@acting/shared';
 import { supabase, callFn } from '@/lib/supabase';
+import { assessIdentity } from '@/lib/identity';
 import { MAP_STYLE } from '@/lib/mapStyle';
 import { c, money, motion, r, s, shadow, type as t } from '@/lib/theme';
 import { Avatar, Badge, Button, Touch } from '@/lib/components';
@@ -52,6 +53,7 @@ export default function Home() {
   const [countdown, setCountdown] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [needsVerify, setNeedsVerify] = useState<string | null>(null);
   const pingRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const refresh = useCallback(async (userId: string) => {
@@ -130,6 +132,20 @@ export default function Home() {
     const poll = setInterval(() => refresh(uid), 8000);
     return () => { supabase.removeChannel(ch); clearInterval(poll); };
   }, [uid, refresh]);
+
+  // Ask the server whether this trip needs a face check. Re-checked whenever
+  // the trip state changes (and after returning from the selfie screen).
+  useEffect(() => {
+    if (!trip || trip.status !== 'driver_arrived') { setNeedsVerify(null); return; }
+    let alive = true;
+    (async () => {
+      try {
+        const a = await assessIdentity({ tripId: trip.id });
+        if (alive) setNeedsVerify(a.action === 'pass' ? null : a.message ?? 'Confirm it’s you before starting.');
+      } catch { if (alive) setNeedsVerify(null); }
+    })();
+    return () => { alive = false; };
+  }, [trip?.id, trip?.status, trip]);
 
   useEffect(() => {
     if (!offer) return;
@@ -236,7 +252,7 @@ export default function Home() {
           </Animated.View>
         )}
 
-        {trip ? <TripSheet trip={trip} busy={busy} otpInput={otpInput} setOtpInput={setOtpInput} act={act} />
+        {trip ? <TripSheet trip={trip} busy={busy} otpInput={otpInput} setOtpInput={setOtpInput} act={act} needsVerify={needsVerify} />
           : offer ? <RequestSheet offer={offer} detail={detail} countdown={countdown} busy={busy} act={act} />
           : online ? <OnlineSheet earnings={todayEarnings} trips={todayTrips.length} rating={rating} busy={busy} onToggle={toggleOnline} cats={myCats} />
           : <OfflineSheet earnings={todayEarnings} trips={todayTrips.length} rating={rating} busy={busy} onGo={toggleOnline} cats={myCats} />}
@@ -395,7 +411,7 @@ function RequestSheet({ offer, detail, countdown, busy, act }: { offer: Offer; d
 }
 
 /* ── Active trip ────────────────────────────────────────────────────────── */
-function TripSheet({ trip, busy, otpInput, setOtpInput, act }: { trip: Trip; busy: boolean; otpInput: string; setOtpInput: (v: string) => void; act: (fn: () => Promise<unknown>) => Promise<void> }) {
+function TripSheet({ trip, busy, otpInput, setOtpInput, act, needsVerify }: { trip: Trip; busy: boolean; otpInput: string; setOtpInput: (v: string) => void; act: (fn: () => Promise<unknown>) => Promise<void>; needsVerify: string | null }) {
   const m = cat(trip.category_slug);
   const steps = ['accepted', 'driver_arrived', 'in_progress', 'completed'];
   const activeIdx = Math.max(0, steps.indexOf(trip.status === 'paid' ? 'completed' : trip.status));
@@ -431,7 +447,20 @@ function TripSheet({ trip, busy, otpInput, setOtpInput, act }: { trip: Trip; bus
 
       <View style={{ marginTop: s.lg }}>
         {trip.status === 'accepted' && <Button label="I've arrived at pickup" icon="checkmark-done" onPress={() => act(() => callFn('trip-lifecycle', { action: 'arrive', trip_id: trip.id }))} loading={busy} />}
-        {trip.status === 'driver_arrived' && (
+        {trip.status === 'driver_arrived' && needsVerify && (
+          <View style={{ gap: s.md }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: s.sm, backgroundColor: c.brandSoft, borderRadius: r.md, padding: s.md }}>
+              <Ionicons name="shield-checkmark" size={18} color={c.brand} />
+              <Text style={{ color: c.brand, flex: 1, fontWeight: '700', fontSize: 13 }}>{needsVerify}</Text>
+            </View>
+            <Button
+              label="Confirm it's you"
+              icon="scan"
+              onPress={() => router.push({ pathname: '/verify-identity', params: { trip: trip.id, reason: needsVerify } })}
+            />
+          </View>
+        )}
+        {trip.status === 'driver_arrived' && !needsVerify && (
           <View style={{ gap: s.md }}>
             <Text style={{ color: c.inkMuted, fontSize: 13, fontWeight: '500' }}>Ask the customer for their 4-digit start code:</Text>
             <TextInput value={otpInput} onChangeText={setOtpInput} keyboardType="number-pad" maxLength={4} placeholder="––––" placeholderTextColor={c.inkFaint} style={st.otp} />

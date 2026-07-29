@@ -1,5 +1,6 @@
 import {
   assertTransition,
+  assessIdentityRisk,
   calculateFare,
   DAY_HOURS,
   errorResponse,
@@ -106,6 +107,37 @@ Deno.serve(async (req: Request) => {
       case 'start': {
         if (!isDriver) throw new HttpError(403, 'Only the assigned driver can do this');
         assertTransition(status, 'started');
+
+        // ── Identity gate (PRD §3.4) ─────────────────────────────────────
+        // Enforced here, server-side: the app cannot skip it by not showing
+        // the selfie screen. Fail-closed categories (school bus, crane, bus,
+        // earth mover) will not start without a passed check.
+        const { data: dpv } = await supa.from('driver_profiles')
+          .select('trips_completed, last_verified_at, identity_hold, identity_hold_reason')
+          .eq('driver_id', user.id).maybeSingle();
+        if (dpv?.identity_hold) {
+          throw new HttpError(403, dpv.identity_hold_reason ?? 'Your account is on hold pending an identity review.');
+        }
+        const { data: recentFails } = await supa.from('verification_events')
+          .select('id').eq('driver_id', user.id).eq('result', 'failed')
+          .gte('created_at', new Date(Date.now() - 6 * 3_600_000).toISOString());
+        const verdict = assessIdentityRisk({
+          category: trip.category_slug,
+          lastVerifiedAt: dpv?.last_verified_at,
+          hadRecentFailure: (recentFails?.length ?? 0) > 0,
+          tripsCompleted: dpv?.trips_completed ?? 0,
+        });
+        if (verdict.action !== 'pass') {
+          // A check passed for THIS trip satisfies the challenge.
+          const { data: okForTrip } = await supa.from('verification_events')
+            .select('id').eq('trip_id', trip_id).eq('driver_id', user.id).eq('result', 'passed').limit(1);
+          if (!okForTrip?.length) {
+            throw new HttpError(428, verdict.action === 'block'
+              ? 'Identity review required before you can start trips. Contact support.'
+              : 'Confirm it’s you before starting this trip.');
+          }
+        }
+
         const { data: secret } = await supa.from('trip_secrets').select('start_otp').eq('trip_id', trip_id).single();
         if (!secret || secret.start_otp !== String(otp ?? '')) {
           throw new HttpError(403, 'Invalid start OTP — ask the customer for the 4-digit code');

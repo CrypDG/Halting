@@ -58,7 +58,7 @@ export default function Settings() {
         <View>
           <Text style={[t.label, { color: c.inkMuted, marginBottom: s.sm, paddingHorizontal: s.xs }]}>Security</Text>
           <Card style={{ padding: 0 }}>
-            {bioAvail && <MenuRow icon="finger-print" tint={c.brand} title={`Unlock with ${bioLabel}`} subtitle="Require biometric to open the app" toggle={{ value: bioOn, onValueChange: toggleBio }} />}
+            {bioAvail && <MenuRow icon="finger-print" tint={c.brand} title={`App lock · ${bioLabel}`} subtitle="Locks this app only — not a driver identity check" toggle={{ value: bioOn, onValueChange: toggleBio }} />}
             <MenuRow icon="lock-closed-outline" tint={c.steel} title="Change password" onPress={() => Alert.alert('Change password', 'Password reset via email is coming soon.')} last />
           </Card>
         </View>

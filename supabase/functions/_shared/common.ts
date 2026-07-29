@@ -96,3 +96,70 @@ export function calculateFare(input: {
   const overtime = round2((input.overtimeHours ?? 0) * (input.pricing.overtimePerHour ?? 0));
   return { base, overtime, total: round2(base + overtime) };
 }
+
+// ── Identity risk (mirror of @acting/shared identityRisk.ts — keep in sync) ──
+export type RiskReason =
+  | 'new_device' | 'stale_verification' | 'never_verified' | 'high_risk_category'
+  | 'new_driver' | 'night_trip' | 'recent_failure' | 'location_jump';
+export type VerificationAction = 'pass' | 'challenge' | 'block';
+export type CategoryRisk = 'critical' | 'high' | 'medium' | 'standard';
+
+export const CATEGORY_RISK: Record<string, CategoryRisk> = {
+  school_bus: 'critical', bus: 'high', crane: 'high', earth_mover: 'high',
+  truck: 'medium', tractor: 'medium', car: 'standard',
+};
+const FAIL_CLOSED: CategoryRisk[] = ['critical', 'high'];
+export const failsClosed = (category: string) => FAIL_CLOSED.includes(CATEGORY_RISK[category] ?? 'standard');
+
+export const VERIFICATION_TTL_HOURS = 12;
+
+const WEIGHTS: Record<RiskReason, number> = {
+  never_verified: 100, recent_failure: 60, new_device: 45, location_jump: 40,
+  high_risk_category: 35, stale_verification: 25, new_driver: 20, night_trip: 10,
+};
+const ESCALATING: RiskReason[] = ['never_verified', 'stale_verification', 'recent_failure', 'new_device', 'location_jump'];
+const BLOCKING: RiskReason[] = ['never_verified', 'recent_failure', 'location_jump'];
+const CHALLENGE_AT: Record<CategoryRisk, number> = { critical: 0, high: 30, medium: 55, standard: 65 };
+
+export function assessIdentityRisk(input: {
+  category: string;
+  lastVerifiedAt?: Date | string | null;
+  isNewDevice?: boolean;
+  hadRecentFailure?: boolean;
+  hadLocationJump?: boolean;
+  tripsCompleted?: number;
+  at?: Date;
+}): { score: number; reasons: RiskReason[]; action: VerificationAction; categoryRisk: CategoryRisk; failClosed: boolean } {
+  const categoryRisk = CATEGORY_RISK[input.category] ?? 'standard';
+  const reasons: RiskReason[] = [];
+  const at = input.at ?? new Date();
+
+  const last = input.lastVerifiedAt ? new Date(input.lastVerifiedAt) : null;
+  if (!last || Number.isNaN(last.getTime())) reasons.push('never_verified');
+  else if ((at.getTime() - last.getTime()) / 3_600_000 > VERIFICATION_TTL_HOURS) reasons.push('stale_verification');
+
+  if (input.isNewDevice) reasons.push('new_device');
+  if (input.hadRecentFailure) reasons.push('recent_failure');
+  if (input.hadLocationJump) reasons.push('location_jump');
+  if (categoryRisk === 'critical' || categoryRisk === 'high') reasons.push('high_risk_category');
+  if ((input.tripsCompleted ?? 0) < 5) reasons.push('new_driver');
+  const hour = at.getHours();
+  if (hour >= 22 || hour < 6) reasons.push('night_trip');
+
+  const score = reasons.reduce((sum, r) => sum + WEIGHTS[r], 0);
+  const escalating = reasons.some((r) => ESCALATING.includes(r));
+  const blocking = reasons.filter((r) => BLOCKING.includes(r)).length;
+  const action: VerificationAction =
+    blocking >= 2 ? 'block' : escalating || score >= CHALLENGE_AT[categoryRisk] ? 'challenge' : 'pass';
+
+  return { score, reasons, action, categoryRisk, failClosed: failsClosed(input.category) };
+}
+
+export function explainChallenge(v: { reasons: RiskReason[]; categoryRisk: CategoryRisk }): string {
+  if (v.reasons.includes('never_verified')) return 'Confirm it’s you before your first trip.';
+  if (v.reasons.includes('new_device')) return 'New device detected — confirm it’s you.';
+  if (v.reasons.includes('recent_failure')) return 'Last check didn’t match. Let’s try again.';
+  if (v.categoryRisk === 'critical') return 'School-bus trips need a face check every time.';
+  if (v.categoryRisk === 'high') return 'Heavy vehicles need a quick face check.';
+  return 'Quick face check to confirm it’s you.';
+}
