@@ -18,7 +18,7 @@ On-demand marketplace connecting vehicle owners with **verified professional dri
 npm install                      # from the repo root (npm workspaces)
 npx vitest run                   # in packages/shared — 14 unit tests
 npm run dev -w @acting/admin    # admin panel on :3100
-bash scripts/smoke-test.sh       # full backend e2e against the cloud project
+bash scripts/smoke-test.sh       # full backend e2e against the self-hosted backend
 ```
 
 **Dev accounts** (password `Acting123!`):
@@ -31,7 +31,7 @@ bash scripts/smoke-test.sh       # full backend e2e against the cloud project
 
 > New in-app sign-ups need **Confirm email** disabled in Supabase (Auth → Providers → Email), or use the seeded accounts.
 
-## Backend (Supabase `pybxdufrmnhgneupsssi`, ap-south-1)
+## Backend (self-hosted Supabase at actingapi.loankard.com)
 
 - **Postgres + PostGIS** — `nearby_drivers()` geo-query, GPS breadcrumbs, fare distance.
 - **RLS everywhere** — customers see own trips; drivers never see the start OTP; presence is only visible to trip counterparties and admins.

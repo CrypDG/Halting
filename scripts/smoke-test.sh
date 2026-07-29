@@ -3,8 +3,8 @@
 # through the full lifecycle as driver1, and checks the setup-fee gate.
 set -euo pipefail
 
-URL="https://pybxdufrmnhgneupsssi.supabase.co"
-ANON="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB5YnhkdWZybW5oZ25ldXBzc3NpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM4MzU0MjMsImV4cCI6MjA5OTQxMTQyM30.GgRA6zHueRJ4yZBGfVJglPMtNkvz52piHHCME8iN-JE"
+URL="https://actingapi.loankard.com"
+ANON="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiIsImlzcyI6InN1cGFiYXNlIiwiaWF0IjoxNzg1MzA0Mjk2LCJleHAiOjIxMDA2NjQyOTZ9.EJjmH_WlJSji56r-wBZ_68pAjdGbvrfXB0cIYyeGWwM"
 PASS="Acting123!"
 
 login() {

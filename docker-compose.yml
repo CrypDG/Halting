@@ -17,8 +17,8 @@ services:
       dockerfile: apps/admin/Dockerfile
       args:
         # Public Supabase values (safe to embed — anon key is RLS-guarded).
-        NEXT_PUBLIC_SUPABASE_URL: "https://pybxdufrmnhgneupsssi.supabase.co"
-        NEXT_PUBLIC_SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB5YnhkdWZybW5oZ25ldXBzc3NpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM4MzU0MjMsImV4cCI6MjA5OTQxMTQyM30.GgRA6zHueRJ4yZBGfVJglPMtNkvz52piHHCME8iN-JE"
+        NEXT_PUBLIC_SUPABASE_URL: "https://actingapi.loankard.com"
+        NEXT_PUBLIC_SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiIsImlzcyI6InN1cGFiYXNlIiwiaWF0IjoxNzg1MzA0Mjk2LCJleHAiOjIxMDA2NjQyOTZ9.EJjmH_WlJSji56r-wBZ_68pAjdGbvrfXB0cIYyeGWwM"
     # 127.0.0.1-only, purely for `curl` testing from the host. The real
     # traffic path is the shared network below, not this port.
     # Change the host-side "3100" if that port is already taken

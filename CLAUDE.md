@@ -6,11 +6,11 @@ Inverted Uber: the customer owns the vehicle (car/truck/bus/school bus/crane/tra
 - `packages/shared` — TS business rules: vehicle-category ↔ license-class matching, trip state machine, fare calculator, mock external providers (KYC/Sarathi/payments/SMS/masked calls). Unit tests: `npx vitest run` here.
 - `apps/admin` — Next.js 15 + Tailwind 4 ops panel, port 3100 (`npm run dev -w @acting/admin`). Client-side Supabase auth; admin actions go through the `admin-actions` edge function.
 - `apps/driver`, `apps/customer` — Expo SDK 53 + expo-router. `npx expo start` in each. Customer app uses react-native-maps (Android/Expo Go).
-- `supabase/migrations` — canonical schema history (also applied to the cloud project). `supabase/functions` — edge function sources (deployed via Supabase MCP). `supabase/seed.sql` — dev data.
+- `supabase/migrations` — canonical schema history (also applied to the self-hosted database). `supabase/functions` — edge function sources (deployed via Supabase MCP). `supabase/seed.sql` — dev data.
 - `scripts/smoke-test.sh` — full backend e2e (login → go online → book → OTP → trip lifecycle → cash confirm → close → setup fee → rating). Run with bash.
 
 ## Supabase
-- Project: `acting` (`pybxdufrmnhgneupsssi`), region ap-south-1, org NexaEx. URL/anon key are in `apps/*/.env` and `apps/admin/.env.local`.
+- SELF-HOSTED on the Contabo server (94.136.189.234) at https://actingapi.loankard.com — stack lives in ~/acting-supabase (docker compose), Postgres/auth/realtime/storage/edge-functions all local. No cloud Supabase. URL/anon key are in `apps/*/.env` and `apps/admin/.env.local`.
 - Dev accounts (password `Acting123!`): admin@acting.dev, customer@acting.dev, driver1@acting.dev (LMV/car, approved), driver2@acting.dev (HMV+HTV+PSV → truck/bus/crane/earth mover, approved), driver3@acting.dev (HPMV+PSV+school-bus).
 - Seeded users were inserted directly into `auth.users`; app sign-up requires disabling "Confirm email" in the Supabase dashboard (Auth → Providers → Email).
 
